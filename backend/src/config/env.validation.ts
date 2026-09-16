@@ -12,6 +12,9 @@ export const envValidationSchema = Joi.object({
   POSTGRES_PASSWORD: Joi.string().required(),
   POSTGRES_DB: Joi.string().required(),
 
+  DEFAULT_ADMIN_EMAIL: Joi.string().email().default('admin@example.com'),
+  DEFAULT_ADMIN_PASSWORD: Joi.string().min(8).default('ChangeMe123!'),
+
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().required(),
 
