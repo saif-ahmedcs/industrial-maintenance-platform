@@ -8,6 +8,8 @@ import { APP_FILTER } from '@nestjs/core';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { HealthModule } from './health/health.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { HealthModule } from './health/health.module';
       }),
     }),
     HealthModule,
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [
