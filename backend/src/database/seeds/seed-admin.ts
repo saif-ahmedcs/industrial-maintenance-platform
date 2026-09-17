@@ -11,17 +11,13 @@ async function seed(): Promise<void> {
   const roleRepo = AppDataSource.getRepository(Role);
   const userRepo = AppDataSource.getRepository(User);
 
-  const roles: Record<RoleName, Role> = {} as Record<RoleName, Role>;
-
-  for (const name of Object.values(RoleName)) {
-    let role = await roleRepo.findOne({ where: { name } });
-    if (!role) {
-      role = await roleRepo.save(roleRepo.create({ name }));
-      console.log(`Created role: ${name}`);
-    } else {
-      console.log(`Role already exists: ${name}`);
-    }
-    roles[name] = role;
+  const adminRole = await roleRepo.findOne({
+    where: { name: RoleName.ADMIN },
+  });
+  if (!adminRole) {
+    throw new Error(
+      'ADMIN role not found — run migrations first (roles are seeded by a migration, not this script)',
+    );
   }
 
   const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@example.com';
@@ -36,7 +32,7 @@ async function seed(): Promise<void> {
       email: adminEmail,
       passwordHash,
       isActive: true,
-      roles: [roles[RoleName.ADMIN]],
+      roles: [adminRole],
     });
     await userRepo.save(admin);
     console.log(`Created default admin: ${adminEmail}`);
