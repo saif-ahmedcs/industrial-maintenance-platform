@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { envValidationSchema } from './config/env.validation';
@@ -37,6 +38,13 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
         autoLoadEntities: true,
       }),
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 60,
+      },
+    ]),
     HealthModule,
     UsersModule,
     AuthModule,
@@ -45,6 +53,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
