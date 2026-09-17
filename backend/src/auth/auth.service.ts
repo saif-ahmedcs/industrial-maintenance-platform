@@ -114,12 +114,20 @@ export class AuthService {
 
   async logout(presentedToken: string): Promise<void> {
     const tokenHash = this.hashToken(presentedToken);
-    const existing = await this.refreshTokenRepo.findOne({
-      where: { tokenHash },
-    });
-    if (existing && !existing.revokedAt) {
-      existing.revokedAt = new Date();
-      await this.refreshTokenRepo.save(existing);
+    let current = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
+    if (!current) return;
+
+    while (current.revokedAt && current.replacedById) {
+      const next = await this.refreshTokenRepo.findOne({
+        where: { id: current.replacedById },
+      });
+      if (!next) break;
+      current = next;
+    }
+
+    if (!current.revokedAt) {
+      current.revokedAt = new Date();
+      await this.refreshTokenRepo.save(current);
     }
   }
 
