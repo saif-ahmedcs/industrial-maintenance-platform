@@ -10,12 +10,24 @@ export class RedisHealthIndicator {
     private readonly healthIndicatorService: HealthIndicatorService,
   ) {}
 
-  pingCheck(key: string) {
-    return this.healthIndicatorService
-      .check(key)
-      .attempt(async () => {
-        await this.redis.ping();
-      })
-      .withTimeout(2000);
+  async pingCheck(key: string) {
+    const indicator = this.healthIndicatorService.check(key);
+    try {
+      await this.withTimeout(this.redis.ping(), 2000);
+      return indicator.up();
+    } catch (error) {
+      return indicator.down({
+        message: error instanceof Error ? error.message : 'Redis ping failed',
+      });
+    }
+  }
+
+  private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error('Redis health check timed out')), ms),
+      ),
+    ]);
   }
 }
