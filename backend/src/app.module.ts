@@ -14,6 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { PlantsModule } from './plants/plants.module';
 import { LocationsModule } from './locations/locations.module';
+import { AssetTypesModule } from './asset-types/asset-types.module';
+import { AssetsModule } from './assets/assets.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -54,6 +56,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AuditModule,
     PlantsModule,
     LocationsModule,
+    AssetTypesModule,
+    AssetsModule,
   ],
   controllers: [AppController],
   providers: [
