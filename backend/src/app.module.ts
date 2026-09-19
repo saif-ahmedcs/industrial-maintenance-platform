@@ -13,6 +13,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { PlantsModule } from './plants/plants.module';
+import { LocationsModule } from './locations/locations.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -52,6 +53,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     AuthModule,
     AuditModule,
     PlantsModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [
