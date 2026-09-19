@@ -72,7 +72,8 @@ export class AssetTypesService {
       }
 
       const before = { name: assetType.name, category: assetType.category };
-      Object.assign(assetType, dto);
+      if (dto.name !== undefined) assetType.name = dto.name;
+      if (dto.category !== undefined) assetType.category = dto.category;
       const saved = await manager.save(assetType);
 
       await this.auditService.record(manager, {

@@ -67,7 +67,8 @@ export class PlantsService {
       }
 
       const before = { name: plant.name, address: plant.address };
-      Object.assign(plant, dto);
+      if (dto.name !== undefined) plant.name = dto.name;
+      if (dto.address !== undefined) plant.address = dto.address;
       const saved = await manager.save(plant);
 
       await this.auditService.record(manager, {

@@ -126,12 +126,17 @@ export class AssetsService {
         criticality: asset.criticality,
       };
 
-      Object.assign(asset, {
-        ...dto,
-        installedAt: dto.installedAt
-          ? new Date(dto.installedAt)
-          : asset.installedAt,
-      });
+      if (dto.assetTypeId !== undefined) asset.assetTypeId = dto.assetTypeId;
+      if (dto.locationId !== undefined) asset.locationId = dto.locationId;
+      if (dto.tag !== undefined) asset.tag = dto.tag;
+      if (dto.manufacturer !== undefined) {
+        asset.manufacturer = dto.manufacturer;
+      }
+      if (dto.model !== undefined) asset.model = dto.model;
+      if (dto.criticality !== undefined) asset.criticality = dto.criticality;
+      if (dto.installedAt !== undefined) {
+        asset.installedAt = new Date(dto.installedAt);
+      }
       const saved = await manager.save(asset);
 
       await this.auditService.record(manager, {

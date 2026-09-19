@@ -125,7 +125,10 @@ export class LocationsService {
         name: location.name,
         parentLocationId: location.parentLocationId,
       };
-      Object.assign(location, dto);
+      if (dto.name !== undefined) location.name = dto.name;
+      if (dto.parentLocationId !== undefined) {
+        location.parentLocationId = dto.parentLocationId;
+      }
       const saved = await manager.save(location);
 
       await this.auditService.record(manager, {
