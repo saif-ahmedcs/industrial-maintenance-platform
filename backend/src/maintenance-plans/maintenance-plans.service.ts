@@ -9,14 +9,9 @@ import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { CreateMaintenancePlanDto } from './dto/create-maintenance-plan.dto';
 import { UpdateMaintenancePlanDto } from './dto/update-maintenance-plan.dto';
 import { MaintenancePlan } from './entities/maintenance-plan.entity';
+import { daysFromNow } from '../common/utils/date.util';
 
 const SORTABLE_FIELDS = ['plan.name', 'plan.nextDueAt', 'plan.intervalDays'];
-
-const daysFromNow = (days: number): Date => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date;
-};
 
 @Injectable()
 export class MaintenancePlansService {
