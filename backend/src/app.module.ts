@@ -16,6 +16,7 @@ import { PlantsModule } from './plants/plants.module';
 import { LocationsModule } from './locations/locations.module';
 import { AssetTypesModule } from './asset-types/asset-types.module';
 import { AssetsModule } from './assets/assets.module';
+import { MaintenancePlansModule } from './maintenance-plans/maintenance-plans.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -58,6 +59,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     LocationsModule,
     AssetTypesModule,
     AssetsModule,
+    MaintenancePlansModule,
   ],
   controllers: [AppController],
   providers: [
