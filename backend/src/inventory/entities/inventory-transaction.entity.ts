@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -20,6 +21,11 @@ export enum InventoryTransactionReason {
 @Entity('inventory_transactions')
 @Index(['sparePartId'])
 @Index(['workOrderId'])
+@Check('CHK_inventory_transactions_delta_non_zero', '"delta_quantity" <> 0')
+@Check(
+  'CHK_inventory_transactions_resulting_quantity_non_negative',
+  '"resulting_quantity" >= 0',
+)
 export class InventoryTransaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
