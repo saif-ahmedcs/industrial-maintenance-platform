@@ -30,9 +30,9 @@ export async function paginate<T extends ObjectLiteral>(
       : options.defaultSortBy;
 
   qb.orderBy(sortBy, sortDir)
+    .addOrderBy(`${qb.alias}.id`, sortDir)
     .skip((page - 1) * limit)
     .take(limit);
-
   const [data, total] = await qb.getManyAndCount();
 
   return {
