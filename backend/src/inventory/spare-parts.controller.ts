@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -101,5 +102,14 @@ export class SparePartsController {
       sparePart: SparePartResponseDto.fromEntity(sparePart),
       transaction: InventoryTransactionResponseDto.fromEntity(transaction),
     };
+  }
+
+  @Delete(':id')
+  @Roles(RoleName.ADMIN, RoleName.SUPERVISOR)
+  async remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    await this.inventoryService.remove(id, user);
   }
 }

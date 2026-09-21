@@ -277,4 +277,26 @@ export class InventoryService {
       return { sparePart: result.sparePart, transaction: result.transaction };
     });
   }
+
+  async remove(id: string, actor: RequestUser): Promise<void> {
+    return this.dataSource.transaction(async (manager) => {
+      const part = await this.lockPart(manager, id);
+
+      await manager.remove(part);
+
+      await this.auditService.record(manager, {
+        actorUserId: actor.id,
+        entityType: 'SparePart',
+        entityId: id,
+        action: 'DELETE',
+        before: {
+          sku: part.sku,
+          name: part.name,
+          quantityOnHand: part.quantityOnHand,
+        },
+        after: null,
+        source: 'manual',
+      });
+    });
+  }
 }
