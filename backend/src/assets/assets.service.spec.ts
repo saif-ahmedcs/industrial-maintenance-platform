@@ -17,6 +17,7 @@ describe('AssetsService', () => {
   };
   let dataSource: { transaction: jest.Mock };
   let auditService: { record: jest.Mock };
+  let assetHistoryService: { record: jest.Mock };
 
   const actor: RequestUser = {
     id: 'user-1',
@@ -34,11 +35,13 @@ describe('AssetsService', () => {
     };
     dataSource = { transaction: jest.fn((cb) => cb(manager)) };
     auditService = { record: jest.fn(async () => ({})) };
+    assetHistoryService = { record: jest.fn(async () => ({})) };
 
     service = new AssetsService(
       assetRepo as any,
       dataSource as any,
       auditService as any,
+      assetHistoryService as any,
     );
   });
 
@@ -155,7 +158,7 @@ describe('AssetsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('records a STATUS_CHANGE audit entry with correct before/after values', async () => {
+    it('records a STATUS_CHANGE audit entry and a matching history row', async () => {
       manager.findOneBy.mockResolvedValue({
         id: 'asset-1',
         status: AssetStatus.OPERATIONAL,
@@ -178,6 +181,33 @@ describe('AssetsService', () => {
           after: { status: AssetStatus.CRITICAL },
         }),
       );
+      expect(assetHistoryService.record).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          assetId: 'asset-1',
+          previousStatus: AssetStatus.OPERATIONAL,
+          newStatus: AssetStatus.CRITICAL,
+          changedByUserId: actor.id,
+        }),
+      );
+    });
+
+    it('skips the audit and history writes when the status is unchanged', async () => {
+      manager.findOneBy.mockResolvedValue({
+        id: 'asset-1',
+        status: AssetStatus.OPERATIONAL,
+      });
+
+      const result = await service.updateStatus(
+        'asset-1',
+        { status: AssetStatus.OPERATIONAL } as any,
+        actor,
+      );
+
+      expect(result.status).toBe(AssetStatus.OPERATIONAL);
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+      expect(assetHistoryService.record).not.toHaveBeenCalled();
     });
   });
 

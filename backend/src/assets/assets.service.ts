@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AssetType } from '../asset-types/entities/asset-type.entity';
 import { AuditService } from '../audit/audit.service';
+import { AssetHistoryService } from '../asset-history/asset-history.service';
 import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
@@ -21,6 +22,7 @@ export class AssetsService {
     private readonly assetRepo: Repository<Asset>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly assetHistoryService: AssetHistoryService,
   ) {}
 
   async findAll(query: PaginationQueryDto): Promise<PaginatedResult<Asset>> {
@@ -171,6 +173,10 @@ export class AssetsService {
         throw new NotFoundException(`Asset ${id} not found`);
       }
 
+      if (asset.status === dto.status) {
+        return asset;
+      }
+
       const before = { status: asset.status };
       asset.status = dto.status;
       const saved = await manager.save(asset);
@@ -182,6 +188,14 @@ export class AssetsService {
         action: 'STATUS_CHANGE',
         before,
         after: { status: saved.status },
+        source: 'manual',
+      });
+
+      await this.assetHistoryService.record(manager, {
+        assetId: saved.id,
+        previousStatus: before.status,
+        newStatus: saved.status,
+        changedByUserId: actor.id,
         source: 'manual',
       });
 

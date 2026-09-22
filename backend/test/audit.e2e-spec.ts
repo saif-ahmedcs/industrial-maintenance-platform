@@ -17,6 +17,8 @@ describe('Audit (e2e)', () => {
   let adminAccessToken: string;
 
   const entityId = randomUUID();
+  const secondEntityId = randomUUID();
+  let adminUserId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -54,6 +56,12 @@ describe('Audit (e2e)', () => {
       .expect(200);
     adminAccessToken = loginRes.body.accessToken;
 
+    const [{ id: adminId }] = await dataSource.query(
+      `SELECT id FROM users WHERE email = $1`,
+      [adminEmail],
+    );
+    adminUserId = adminId;
+
     await dataSource.transaction((manager) =>
       auditService.record(manager, {
         actorUserId: null,
@@ -63,6 +71,18 @@ describe('Audit (e2e)', () => {
         before: null,
         after: { status: 'ACTIVE' },
         source: 'e2e-test-setup',
+      }),
+    );
+
+    await dataSource.transaction((manager) =>
+      auditService.record(manager, {
+        actorUserId: adminUserId,
+        entityType: 'WorkOrder',
+        entityId: secondEntityId,
+        action: 'FILTER_TEST_ACTION',
+        before: null,
+        after: { status: 'COMPLETED' },
+        source: 'filter-test-source',
       }),
     );
   });
@@ -81,6 +101,49 @@ describe('Audit (e2e)', () => {
     expect(res.body.meta.total).toBe(1);
     expect(res.body.data[0].entityType).toBe('Asset');
     expect(res.body.data[0].source).toBe('e2e-test-setup');
+  });
+
+  it('filters by actorUserId', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/audit')
+      .query({ actorUserId: adminUserId })
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .expect(200);
+
+    expect(res.body.meta.total).toBe(1);
+    expect(res.body.data[0].entityId).toBe(secondEntityId);
+  });
+
+  it('filters by action', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/audit')
+      .query({ action: 'FILTER_TEST_ACTION' })
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .expect(200);
+
+    expect(res.body.meta.total).toBe(1);
+    expect(res.body.data[0].entityId).toBe(secondEntityId);
+  });
+
+  it('filters by source', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/audit')
+      .query({ source: 'filter-test-source' })
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .expect(200);
+
+    expect(res.body.meta.total).toBe(1);
+    expect(res.body.data[0].entityId).toBe(secondEntityId);
+  });
+
+  it('combines filters with AND semantics', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/audit')
+      .query({ entityId: secondEntityId, action: 'CREATE' })
+      .set('Authorization', `Bearer ${adminAccessToken}`)
+      .expect(200);
+
+    expect(res.body.meta.total).toBe(0);
   });
 
   it('blocks a VIEWER (the default role on registration) from reading the audit trail', async () => {

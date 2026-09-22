@@ -12,6 +12,7 @@ import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { daysFromNow } from '../common/utils/date.util';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { InventoryService } from '../inventory/inventory.service';
+import { AssetHistoryService } from '../asset-history/asset-history.service';
 import { MaintenancePlan } from '../maintenance-plans/entities/maintenance-plan.entity';
 import { RoleName } from '../users/entities/role.entity';
 import { AssignWorkOrderDto } from './dto/assign-work-order.dto';
@@ -41,6 +42,7 @@ export class WorkOrdersService {
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
     private readonly inventoryService: InventoryService,
+    private readonly assetHistoryService: AssetHistoryService,
   ) {}
 
   private isPrivileged(actor: RequestUser): boolean {
@@ -331,8 +333,12 @@ export class WorkOrdersService {
         throw new NotFoundException(`Asset ${workOrder.assetId} not found`);
       }
       const assetStatusBefore = asset.status;
-      asset.status = AssetStatus.OPERATIONAL;
-      const savedAsset = await manager.save(asset);
+      const assetStatusChanged = assetStatusBefore !== AssetStatus.OPERATIONAL;
+      let savedAsset = asset;
+      if (assetStatusChanged) {
+        asset.status = AssetStatus.OPERATIONAL;
+        savedAsset = await manager.save(asset);
+      }
 
       if (workOrder.maintenancePlanId) {
         const plan = await manager.findOneBy(MaintenancePlan, {
@@ -358,15 +364,25 @@ export class WorkOrdersService {
         source: 'manual',
       });
 
-      await this.auditService.record(manager, {
-        actorUserId: actor.id,
-        entityType: 'Asset',
-        entityId: savedAsset.id,
-        action: 'STATUS_CHANGE',
-        before: { status: assetStatusBefore },
-        after: { status: savedAsset.status },
-        source: 'work-order-completion',
-      });
+      if (assetStatusChanged) {
+        await this.auditService.record(manager, {
+          actorUserId: actor.id,
+          entityType: 'Asset',
+          entityId: savedAsset.id,
+          action: 'STATUS_CHANGE',
+          before: { status: assetStatusBefore },
+          after: { status: savedAsset.status },
+          source: 'work-order-completion',
+        });
+
+        await this.assetHistoryService.record(manager, {
+          assetId: savedAsset.id,
+          previousStatus: assetStatusBefore,
+          newStatus: savedAsset.status,
+          changedByUserId: actor.id,
+          source: 'work-order-completion',
+        });
+      }
 
       return savedWorkOrder;
     });

@@ -17,6 +17,7 @@ import type { RequestUser } from '../auth/interfaces/request-user.interface';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { RoleName } from '../users/entities/role.entity';
 import { AssetsService } from './assets.service';
+import { AssetHistoryService } from '../asset-history/asset-history.service';
 import { AssetResponseDto } from './dto/asset-response.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
@@ -25,7 +26,10 @@ import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
 @Controller('assets')
 @UseGuards(RolesGuard)
 export class AssetsController {
-  constructor(private readonly assetsService: AssetsService) {}
+  constructor(
+    private readonly assetsService: AssetsService,
+    private readonly assetHistoryService: AssetHistoryService,
+  ) {}
 
   @Get()
   async findAll(@Query() query: PaginationQueryDto) {
@@ -39,6 +43,15 @@ export class AssetsController {
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return AssetResponseDto.fromEntity(await this.assetsService.findOne(id));
+  }
+
+  @Get(':id/history')
+  async history(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    await this.assetsService.findOne(id);
+    return this.assetHistoryService.findByAsset(id, query);
   }
 
   @Post()

@@ -41,7 +41,6 @@ export class AuditService {
     return manager.save(entry);
   }
 
-  /** Read-only, so it's fine for this to go through the module's own repo. */
   async findAll(query: AuditQueryDto): Promise<PaginatedResult<AuditLog>> {
     const qb = this.auditLogRepo.createQueryBuilder('audit');
 
@@ -52,6 +51,17 @@ export class AuditService {
     }
     if (query.entityId) {
       qb.andWhere('audit.entityId = :entityId', { entityId: query.entityId });
+    }
+    if (query.actorUserId) {
+      qb.andWhere('audit.actorUserId = :actorUserId', {
+        actorUserId: query.actorUserId,
+      });
+    }
+    if (query.action) {
+      qb.andWhere('audit.action = :action', { action: query.action });
+    }
+    if (query.source) {
+      qb.andWhere('audit.source = :source', { source: query.source });
     }
     if (query.dateFrom) {
       qb.andWhere('audit.createdAt >= :dateFrom', {

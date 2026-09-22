@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { AssetHistoryModule } from '../asset-history/asset-history.module';
 import { WorkOrderPart } from './entities/work-order-part.entity';
 import { WorkOrder } from './entities/work-order.entity';
 import { WorkOrdersController } from './work-orders.controller';
@@ -12,6 +13,7 @@ import { WorkOrdersService } from './work-orders.service';
     TypeOrmModule.forFeature([WorkOrder, WorkOrderPart]),
     AuditModule,
     InventoryModule,
+    AssetHistoryModule,
   ],
   controllers: [WorkOrdersController],
   providers: [WorkOrdersService],

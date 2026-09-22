@@ -10,6 +10,16 @@ export class AuditQueryDto extends PaginationQueryDto {
   entityId?: string;
 
   @IsOptional()
+  @IsUUID()
+  actorUserId?: string;
+
+  @IsOptional()
+  action?: string;
+
+  @IsOptional()
+  source?: string;
+
+  @IsOptional()
   @IsISO8601()
   dateFrom?: string;
 

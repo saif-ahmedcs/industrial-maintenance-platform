@@ -18,6 +18,7 @@ describe('WorkOrdersService.complete', () => {
   let dataSource: { transaction: jest.Mock };
   let auditService: { record: jest.Mock };
   let inventoryService: { consume: jest.Mock };
+  let assetHistoryService: { record: jest.Mock };
 
   const technician: RequestUser = {
     id: 'tech-1',
@@ -66,12 +67,14 @@ describe('WorkOrdersService.complete', () => {
     dataSource = { transaction: jest.fn((cb) => cb(manager)) };
     auditService = { record: jest.fn(async () => ({})) };
     inventoryService = { consume: jest.fn() };
+    assetHistoryService = { record: jest.fn(async () => ({})) };
 
     service = new WorkOrdersService(
       workOrderRepo as any,
       dataSource as any,
       auditService as any,
       inventoryService as any,
+      assetHistoryService as any,
     );
   });
 
@@ -173,6 +176,31 @@ describe('WorkOrdersService.complete', () => {
         source: 'work-order-completion',
       }),
     );
+
+    // (h) matching asset_state_history row, same transaction
+    expect(assetHistoryService.record).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({
+        assetId: 'asset-1',
+        previousStatus: AssetStatus.CRITICAL,
+        newStatus: AssetStatus.OPERATIONAL,
+        changedByUserId: technician.id,
+        source: 'work-order-completion',
+      }),
+    );
+  });
+
+  it('leaves the asset alone when it is already OPERATIONAL at completion', async () => {
+    asset.status = AssetStatus.OPERATIONAL;
+
+    await service.complete('wo-1', {}, technician);
+
+    expect(auditService.record).toHaveBeenCalledTimes(1);
+    expect(auditService.record).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ entityType: 'WorkOrder', action: 'COMPLETE' }),
+    );
+    expect(assetHistoryService.record).not.toHaveBeenCalled();
   });
 
   it('completes with no parts: skips inventory entirely and totals cost to 0', async () => {
