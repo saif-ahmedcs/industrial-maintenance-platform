@@ -48,6 +48,16 @@ services:
     depends_on:
       - postgres
 
+  simulator:
+    build:
+      context: ./simulator
+    restart: unless-stopped
+    environment:
+      MQTT_HOST: mqtt
+      MQTT_PORT: 1883
+    depends_on:
+      - mqtt
+
 volumes:
   postgres_data:
   postgres_test_data:

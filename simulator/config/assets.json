@@ -1,0 +1,37 @@
+[
+  {
+    "assetId": "d57d9ca9-0d4a-4151-ad92-88c8ab13b930",
+    "plantId": "0a15ffb6-009c-4978-a9ca-d7cbc3f5dc0d",
+    "tag": "PUMP-01",
+    "baseline": { "temperature": 45, "vibration": 2.2, "pressure": 6.0 },
+    "drift": false
+  },
+  {
+    "assetId": "3e00cdb1-f190-434a-aefe-26f52e9a0750",
+    "plantId": "0a15ffb6-009c-4978-a9ca-d7cbc3f5dc0d",
+    "tag": "PUMP-02",
+    "baseline": { "temperature": 48, "vibration": 2.4, "pressure": 6.1 },
+    "drift": false
+  },
+  {
+    "assetId": "550a4fb6-802f-43c7-84d3-ac49273ae739",
+    "plantId": "0a15ffb6-009c-4978-a9ca-d7cbc3f5dc0d",
+    "tag": "COMPRESSOR-01",
+    "baseline": { "temperature": 52, "vibration": 3.1, "pressure": 8.5 },
+    "drift": false
+  },
+  {
+    "assetId": "82ecdb88-9d1e-40af-a62d-752ce0de007a",
+    "plantId": "0a15ffb6-009c-4978-a9ca-d7cbc3f5dc0d",
+    "tag": "MOTOR-01",
+    "baseline": { "temperature": 55, "vibration": 2.8, "pressure": 5.5 },
+    "drift": true
+  },
+  {
+    "assetId": "cd807696-1c47-458b-9b44-7009000ff70b",
+    "plantId": "0a15ffb6-009c-4978-a9ca-d7cbc3f5dc0d",
+    "tag": "MOTOR-02",
+    "baseline": { "temperature": 50, "vibration": 2.6, "pressure": 5.7 },
+    "drift": true
+  }
+]
