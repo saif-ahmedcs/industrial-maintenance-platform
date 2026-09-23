@@ -20,6 +20,7 @@ import { MaintenancePlansModule } from './maintenance-plans/maintenance-plans.mo
 import { InventoryModule } from './inventory/inventory.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -45,6 +46,16 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
         database: config.get<string>('POSTGRES_DB'),
         synchronize: false,
         autoLoadEntities: true,
+      }),
+    }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('REDIS_HOST'),
+          port: config.get<number>('REDIS_PORT'),
+        },
       }),
     }),
     ThrottlerModule.forRoot([

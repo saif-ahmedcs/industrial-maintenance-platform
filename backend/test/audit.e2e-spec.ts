@@ -18,6 +18,8 @@ describe('Audit (e2e)', () => {
 
   const entityId = randomUUID();
   const secondEntityId = randomUUID();
+  const filterTestAction = `FILTER_TEST_ACTION_${Date.now()}`;
+  const filterTestSource = `filter-test-source-${Date.now()}`;
   let adminUserId: string;
 
   beforeAll(async () => {
@@ -79,10 +81,10 @@ describe('Audit (e2e)', () => {
         actorUserId: adminUserId,
         entityType: 'WorkOrder',
         entityId: secondEntityId,
-        action: 'FILTER_TEST_ACTION',
+        action: filterTestAction,
         before: null,
         after: { status: 'COMPLETED' },
-        source: 'filter-test-source',
+        source: filterTestSource,
       }),
     );
   });
@@ -117,7 +119,7 @@ describe('Audit (e2e)', () => {
   it('filters by action', async () => {
     const res = await request(app.getHttpServer())
       .get('/audit')
-      .query({ action: 'FILTER_TEST_ACTION' })
+      .query({ action: filterTestAction })
       .set('Authorization', `Bearer ${adminAccessToken}`)
       .expect(200);
 
@@ -128,7 +130,7 @@ describe('Audit (e2e)', () => {
   it('filters by source', async () => {
     const res = await request(app.getHttpServer())
       .get('/audit')
-      .query({ source: 'filter-test-source' })
+      .query({ source: filterTestSource })
       .set('Authorization', `Bearer ${adminAccessToken}`)
       .expect(200);
 
