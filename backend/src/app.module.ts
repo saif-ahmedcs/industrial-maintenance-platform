@@ -19,6 +19,7 @@ import { AssetsModule } from './assets/assets.module';
 import { MaintenancePlansModule } from './maintenance-plans/maintenance-plans.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -64,6 +65,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     MaintenancePlansModule,
     InventoryModule,
     WorkOrdersModule,
+    TelemetryModule,
   ],
   controllers: [AppController],
   providers: [
