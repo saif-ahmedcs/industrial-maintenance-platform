@@ -18,6 +18,7 @@ async function bootstrap() {
     transport: Transport.MQTT,
     options: {
       url: `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`,
+      subscribeOptions: { qos: 1 },
     },
   });
 
