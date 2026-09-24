@@ -1,25 +1,29 @@
-import { Controller, Inject, Logger } from '@nestjs/common';
+import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import Redis from 'ioredis';
-import { REDIS_CLIENT } from '../redis/redis.module';
 import { TelemetryReadingDto } from './dto/telemetry-reading.dto';
+import { TelemetryService } from './telemetry.service';
 
 @Controller()
 export class TelemetryController {
   private readonly logger = new Logger(TelemetryController.name);
 
-  constructor(
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
-    @InjectQueue('telemetry-processing')
-    private readonly telemetryQueue: Queue,
-  ) {}
+  constructor(private readonly telemetryService: TelemetryService) {}
 
   @EventPattern('factory/+/asset/+/telemetry')
   async handleTelemetry(@Payload() payload: unknown): Promise<void> {
+    if (
+      typeof payload !== 'object' ||
+      payload === null ||
+      Array.isArray(payload)
+    ) {
+      this.logger.warn(
+        `Rejected non-object telemetry payload: ${JSON.stringify(payload)}`,
+      );
+      return;
+    }
+
     const reading = plainToInstance(TelemetryReadingDto, payload);
     const errors = await validate(reading, {
       whitelist: true,
@@ -35,18 +39,6 @@ export class TelemetryController {
       return;
     }
 
-    try {
-      await this.redis.set(
-        `telemetry:latest:${reading.assetId}`,
-        JSON.stringify(reading),
-      );
-
-      await this.telemetryQueue.add('reading', reading);
-    } catch (err) {
-      this.logger.error(
-        `Failed to cache/enqueue telemetry reading for asset ${reading.assetId}`,
-        err instanceof Error ? err.stack : String(err),
-      );
-    }
+    await this.telemetryService.ingest(reading);
   }
 }
