@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { envValidationSchema } from './config/env.validation';
@@ -21,6 +22,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { BullModule } from '@nestjs/bullmq';
+import { NotificationsModule } from './notifications/notifications.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
@@ -65,6 +67,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
         limit: 60,
       },
     ]),
+    ScheduleModule.forRoot(),
     HealthModule,
     UsersModule,
     AuthModule,
@@ -77,6 +80,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     InventoryModule,
     WorkOrdersModule,
     TelemetryModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
