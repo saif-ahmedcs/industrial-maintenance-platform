@@ -19,7 +19,7 @@ import {
   tripsHotTemperatureRule,
 } from './hot-temperature.rule';
 
-const ACTIVE_WORK_ORDER_STATUSES = [
+export const ACTIVE_WORK_ORDER_STATUSES = [
   WorkOrderStatus.OPEN,
   WorkOrderStatus.ASSIGNED,
   WorkOrderStatus.IN_PROGRESS,

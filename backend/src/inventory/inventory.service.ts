@@ -107,6 +107,14 @@ export class InventoryService {
     });
   }
 
+  async findAllLowStock(): Promise<SparePart[]> {
+    return this.sparePartRepo
+      .createQueryBuilder('part')
+      .where('part.quantityOnHand <= part.reorderThreshold')
+      .orderBy('part.quantityOnHand', 'ASC')
+      .getMany();
+  }
+
   async findOne(id: string): Promise<SparePart> {
     const part = await this.sparePartRepo.findOneBy({ id });
     if (!part) {

@@ -51,6 +51,15 @@ export class MaintenancePlansService {
     };
   }
 
+  async findAllDue(): Promise<MaintenancePlan[]> {
+    return this.planRepo
+      .createQueryBuilder('plan')
+      .where('plan.active = :active', { active: true })
+      .andWhere('plan.nextDueAt <= :now', { now: new Date() })
+      .orderBy('plan.nextDueAt', 'ASC')
+      .getMany();
+  }
+
   async findOne(id: string): Promise<MaintenancePlan> {
     const plan = await this.planRepo.findOneBy({ id });
     if (!plan) {
