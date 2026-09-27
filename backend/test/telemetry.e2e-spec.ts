@@ -10,35 +10,9 @@ import { AppModule } from './../src/app.module';
 import { RoleName } from './../src/users/entities/role.entity';
 import { REDIS_CLIENT } from './../src/redis/redis.module';
 import { registerAndLogin } from './utils/register-and-login';
+import { poll } from './utils/poll';
 
 const MQTT_URL = `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`;
-
-/**
- * Polls `fn` until it returns a truthy value or `timeoutMs` elapses.
- * Used throughout this file because MQTT ingestion is asynchronous:
- * a publish returns immediately, well before the message has been
- * validated, cached and persisted on the consumer side.
- */
-async function poll<T>(
-  fn: () => Promise<T | null>,
-  {
-    timeoutMs = 8000,
-    intervalMs = 200,
-  }: { timeoutMs?: number; intervalMs?: number } = {},
-): Promise<T> {
-  const start = Date.now();
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const result = await fn();
-    if (result) {
-      return result;
-    }
-    if (Date.now() - start > timeoutMs) {
-      throw new Error('Timed out waiting for condition');
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-}
 
 describe('Telemetry MQTT Pipeline (e2e)', () => {
   let app: INestApplication<App>;
