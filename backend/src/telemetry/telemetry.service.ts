@@ -47,7 +47,10 @@ export class TelemetryService {
         latestCacheKey(reading.assetId),
         JSON.stringify(reading),
       );
-      await this.telemetryQueue.add('reading', reading);
+      await this.telemetryQueue.add('reading', reading, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 1000 },
+      });
     } catch (err) {
       this.logger.error(
         `Failed to cache/enqueue telemetry reading for asset ${reading.assetId}`,

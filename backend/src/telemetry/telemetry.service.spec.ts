@@ -49,7 +49,10 @@ describe('TelemetryService', () => {
       `telemetry:latest:${reading.assetId}`,
       JSON.stringify(reading),
     );
-    expect(queue.add).toHaveBeenCalledWith('reading', reading);
+    expect(queue.add).toHaveBeenCalledWith('reading', reading, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1000 },
+    });
   });
 
   it('writes to Postgres before Redis and the queue', async () => {

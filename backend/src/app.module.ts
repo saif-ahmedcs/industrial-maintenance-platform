@@ -22,6 +22,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { BullModule } from '@nestjs/bullmq';
+import { ConditionMonitoringModule } from './condition-monitoring/condition-monitoring.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -81,6 +82,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
     WorkOrdersModule,
     TelemetryModule,
     NotificationsModule,
+    ConditionMonitoringModule,
   ],
   controllers: [AppController],
   providers: [
