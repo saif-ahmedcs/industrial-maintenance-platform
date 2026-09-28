@@ -6,6 +6,7 @@ export class NotificationResponseDto {
   relatedEntityType: string;
   relatedEntityId: string;
   message: string;
+  aiNote: string | null;
   status: string;
   createdAt: Date;
   resolvedAt: Date | null;
@@ -18,6 +19,7 @@ export class NotificationResponseDto {
     dto.relatedEntityType = notification.relatedEntityType;
     dto.relatedEntityId = notification.relatedEntityId;
     dto.message = notification.message;
+    dto.aiNote = notification.aiNote ?? null;
     dto.status = notification.status;
     dto.createdAt = notification.createdAt;
     dto.resolvedAt = notification.resolvedAt;

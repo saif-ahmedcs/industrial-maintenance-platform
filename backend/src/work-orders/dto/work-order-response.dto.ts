@@ -26,6 +26,7 @@ export class WorkOrderResponseDto {
   completedAt: Date | null;
   cancelledAt: Date | null;
   totalCost: number | null;
+  aiNote: string | null;
   parts: WorkOrderPartResponseDto[];
 
   static fromEntity(workOrder: WorkOrder): WorkOrderResponseDto {
@@ -44,6 +45,7 @@ export class WorkOrderResponseDto {
     dto.completedAt = workOrder.completedAt;
     dto.cancelledAt = workOrder.cancelledAt;
     dto.totalCost = workOrder.totalCost;
+    dto.aiNote = workOrder.aiNote ?? null;
     dto.parts = (workOrder.workOrderParts ?? []).map((part) => ({
       sparePartId: part.sparePartId,
       quantityUsed: part.quantityUsed,

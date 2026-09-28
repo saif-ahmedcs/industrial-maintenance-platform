@@ -116,6 +116,9 @@ export class WorkOrder {
   })
   totalCost: number | null;
 
+  @Column({ name: 'ai_note', type: 'text', nullable: true })
+  aiNote: string | null;
+
   @OneToMany(() => WorkOrderPart, (part) => part.workOrder)
   workOrderParts: WorkOrderPart[];
 }

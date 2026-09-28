@@ -41,6 +41,9 @@ export class Notification {
   @Column({ type: 'text' })
   message: string;
 
+  @Column({ name: 'ai_note', type: 'text', nullable: true })
+  aiNote: string | null;
+
   @Column({
     type: 'enum',
     enum: NotificationStatus,
