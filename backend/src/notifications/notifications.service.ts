@@ -19,6 +19,7 @@ export interface RecordNotificationParams {
   relatedEntityType: string;
   relatedEntityId: string;
   message: string;
+  aiNote?: string | null;
 }
 
 const SORTABLE_FIELDS = ['notification.createdAt', 'notification.status'];
@@ -43,6 +44,7 @@ export class NotificationsService {
       relatedEntityType: params.relatedEntityType,
       relatedEntityId: params.relatedEntityId,
       message: params.message,
+      aiNote: params.aiNote ?? null,
       status: NotificationStatus.UNREAD,
     });
 

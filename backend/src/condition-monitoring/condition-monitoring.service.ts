@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { Asset, AssetStatus } from '../assets/entities/asset.entity';
 import { NotificationType } from '../notifications/entities/notification.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AiInsightsService } from '../ai-insights/ai-insights.service';
 import { TelemetryReading } from '../telemetry/entities/telemetry-reading.entity';
 import {
   WorkOrder,
@@ -41,6 +42,7 @@ export class ConditionMonitoringService {
     private readonly auditService: AuditService,
     private readonly assetHistoryService: AssetHistoryService,
     private readonly notificationsService: NotificationsService,
+    private readonly aiInsightsService: AiInsightsService,
   ) {}
 
   async evaluateAsset(assetId: string): Promise<void> {
@@ -64,6 +66,29 @@ export class ConditionMonitoringService {
     if (hasActiveAutoWorkOrder) {
       return;
     }
+
+    const assetForContext = await this.dataSource.manager.findOne(Asset, {
+      where: { id: assetId },
+      relations: { assetType: true },
+    });
+
+    const aiNote = assetForContext
+      ? await this.aiInsightsService.generate({
+          kind: 'HOT_TEMPERATURE',
+          asset: {
+            tag: assetForContext.tag,
+            typeName: assetForContext.assetType?.name ?? null,
+            criticality: assetForContext.criticality,
+          },
+          thresholdC: HOT_TEMPERATURE_THRESHOLD_C,
+          readings: recent.map((reading) => ({
+            temperature: reading.temperature,
+            vibration: reading.vibration,
+            pressure: reading.pressure,
+            recordedAt: reading.recordedAt,
+          })),
+        })
+      : null;
 
     await this.dataSource.transaction(async (manager) => {
       const asset = await manager.findOneBy(Asset, { id: assetId });
@@ -105,6 +130,7 @@ export class ConditionMonitoringService {
         source: WorkOrderSource.AUTO,
         priority: WorkOrderPriority.CRITICAL,
         description,
+        aiNote,
       });
       const savedWorkOrder = await manager.save(workOrder);
 
@@ -128,6 +154,7 @@ export class ConditionMonitoringService {
         relatedEntityType: 'Asset',
         relatedEntityId: savedAsset.id,
         message: `Asset ${savedAsset.tag} is CRITICAL: ${CONSECUTIVE_HOT_READINGS_REQUIRED} consecutive readings above ${HOT_TEMPERATURE_THRESHOLD_C}°C.`,
+        aiNote,
       });
 
       this.logger.warn(

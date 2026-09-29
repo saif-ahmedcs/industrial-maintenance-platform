@@ -6,6 +6,7 @@ import { AuditModule } from '../audit/audit.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { MaintenancePlansModule } from '../maintenance-plans/maintenance-plans.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AiInsightsModule } from '../ai-insights/ai-insights.module';
 import { TelemetryReading } from '../telemetry/entities/telemetry-reading.entity';
 import { WorkOrder } from '../work-orders/entities/work-order.entity';
 import { ConditionMonitoringProcessor } from './condition-monitoring.processor';
@@ -21,6 +22,7 @@ import { ScheduledChecksService } from './scheduled-checks.service';
     NotificationsModule,
     MaintenancePlansModule,
     InventoryModule,
+    AiInsightsModule,
   ],
   providers: [
     ConditionMonitoringService,
