@@ -8,6 +8,8 @@ import { NotificationType } from '../notifications/entities/notification.entity'
 import { NotificationsService } from '../notifications/notifications.service';
 import { WorkOrder } from '../work-orders/entities/work-order.entity';
 import { ACTIVE_WORK_ORDER_STATUSES } from './condition-monitoring.service';
+import { AiInsightsService } from '../ai-insights/ai-insights.service';
+import { Asset } from '../assets/entities/asset.entity';
 
 @Injectable()
 export class ScheduledChecksService {
@@ -20,6 +22,7 @@ export class ScheduledChecksService {
     private readonly dataSource: DataSource,
     @InjectRepository(WorkOrder)
     private readonly workOrderRepo: Repository<WorkOrder>,
+    private readonly aiInsightsService: AiInsightsService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -47,11 +50,31 @@ export class ScheduledChecksService {
         continue;
       }
 
+      const asset = await this.dataSource.manager.findOne(Asset, {
+        where: { id: plan.assetId },
+        relations: { assetType: true },
+      });
+
+      const aiNote = await this.aiInsightsService.generate({
+        kind: 'OVERDUE_MAINTENANCE',
+        asset: asset
+          ? {
+              tag: asset.tag,
+              typeName: asset.assetType?.name ?? null,
+              criticality: asset.criticality,
+            }
+          : null,
+        planName: plan.name,
+        intervalDays: plan.intervalDays,
+        dueAt: plan.nextDueAt,
+      });
+
       await this.notificationsService.record(this.dataSource.manager, {
         type: NotificationType.OVERDUE_MAINTENANCE,
         relatedEntityType: 'MaintenancePlan',
         relatedEntityId: plan.id,
         message: `Maintenance plan "${plan.name}" is overdue (was due ${plan.nextDueAt?.toISOString()}).`,
+        aiNote,
       });
     }
 
@@ -77,11 +100,20 @@ export class ScheduledChecksService {
         continue;
       }
 
+      const aiNote = await this.aiInsightsService.generate({
+        kind: 'LOW_STOCK',
+        partName: part.name,
+        sku: part.sku,
+        quantityOnHand: part.quantityOnHand,
+        reorderThreshold: part.reorderThreshold,
+      });
+
       await this.notificationsService.record(this.dataSource.manager, {
         type: NotificationType.LOW_STOCK,
         relatedEntityType: 'SparePart',
         relatedEntityId: part.id,
         message: `Spare part ${part.sku} (${part.name}) is at or below its reorder threshold: ${part.quantityOnHand}/${part.reorderThreshold}.`,
+        aiNote,
       });
     }
 

@@ -12,12 +12,15 @@ describe('ScheduledChecksService', () => {
     hasActiveNotification: jest.Mock;
     record: jest.Mock;
   };
-  let dataSource: { manager: object };
+  let dataSource: { manager: { findOne: jest.Mock } };
   let workOrderRepo: { exists: jest.Mock };
+  let aiInsightsService: { generate: jest.Mock };
 
   const plan = {
     id: 'plan-1',
+    assetId: 'asset-1',
     name: 'Quarterly lubrication',
+    intervalDays: 90,
     nextDueAt: new Date('2026-09-20T00:00:00.000Z'),
   };
 
@@ -37,8 +40,9 @@ describe('ScheduledChecksService', () => {
       hasActiveNotification: jest.fn(),
       record: jest.fn(async () => ({})),
     };
-    dataSource = { manager: {} };
+    dataSource = { manager: { findOne: jest.fn().mockResolvedValue(null) } };
     workOrderRepo = { exists: jest.fn() };
+    aiInsightsService = { generate: jest.fn().mockResolvedValue(null) };
 
     service = new ScheduledChecksService(
       maintenancePlansService as any,
@@ -46,6 +50,7 @@ describe('ScheduledChecksService', () => {
       notificationsService as any,
       dataSource as any,
       workOrderRepo as any,
+      aiInsightsService as any,
     );
   });
 
@@ -112,6 +117,66 @@ describe('ScheduledChecksService', () => {
 
       expect(notificationsService.record).not.toHaveBeenCalled();
     });
+    it('attaches the AI note to the notification, building context from the plan and its asset', async () => {
+      maintenancePlansService.findAllDue.mockResolvedValue([plan]);
+      workOrderRepo.exists.mockResolvedValue(false);
+      notificationsService.hasActiveNotification.mockResolvedValue(false);
+      dataSource.manager.findOne.mockResolvedValue({
+        tag: 'PUMP-01',
+        criticality: 'HIGH',
+        assetType: { name: 'Pump' },
+      });
+      aiInsightsService.generate.mockResolvedValue(
+        'Possibly worn lubricant. Check the oil level first.',
+      );
+
+      await service.checkOverdueMaintenance();
+
+      expect(aiInsightsService.generate).toHaveBeenCalledWith({
+        kind: 'OVERDUE_MAINTENANCE',
+        asset: { tag: 'PUMP-01', typeName: 'Pump', criticality: 'HIGH' },
+        planName: plan.name,
+        intervalDays: plan.intervalDays,
+        dueAt: plan.nextDueAt,
+      });
+      expect(notificationsService.record).toHaveBeenCalledWith(
+        dataSource.manager,
+        expect.objectContaining({
+          aiNote: 'Possibly worn lubricant. Check the oil level first.',
+        }),
+      );
+    });
+
+    it('still creates the notification with aiNote null when the AI returns nothing and the asset is missing', async () => {
+      maintenancePlansService.findAllDue.mockResolvedValue([plan]);
+      workOrderRepo.exists.mockResolvedValue(false);
+      notificationsService.hasActiveNotification.mockResolvedValue(false);
+      dataSource.manager.findOne.mockResolvedValue(null);
+      aiInsightsService.generate.mockResolvedValue(null);
+
+      await service.checkOverdueMaintenance();
+
+      expect(aiInsightsService.generate).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'OVERDUE_MAINTENANCE', asset: null }),
+      );
+      expect(notificationsService.record).toHaveBeenCalledWith(
+        dataSource.manager,
+        expect.objectContaining({
+          type: NotificationType.OVERDUE_MAINTENANCE,
+          aiNote: null,
+        }),
+      );
+    });
+
+    it('does not call the AI for a plan that is skipped', async () => {
+      maintenancePlansService.findAllDue.mockResolvedValue([plan]);
+      workOrderRepo.exists.mockResolvedValue(false);
+      notificationsService.hasActiveNotification.mockResolvedValue(true);
+
+      await service.checkOverdueMaintenance();
+
+      expect(aiInsightsService.generate).not.toHaveBeenCalled();
+    });
   });
 
   describe('checkLowStock', () => {
@@ -175,6 +240,56 @@ describe('ScheduledChecksService', () => {
         dataSource.manager,
         expect.objectContaining({ relatedEntityId: part.id }),
       );
+    });
+
+    it('attaches the AI note to the LOW_STOCK notification', async () => {
+      inventoryService.findAllLowStock.mockResolvedValue([part]);
+      notificationsService.hasActiveNotification.mockResolvedValue(false);
+      aiInsightsService.generate.mockResolvedValue(
+        'Possibly heavy recent usage. Check open work orders consuming this part.',
+      );
+
+      await service.checkLowStock();
+
+      expect(aiInsightsService.generate).toHaveBeenCalledWith({
+        kind: 'LOW_STOCK',
+        partName: part.name,
+        sku: part.sku,
+        quantityOnHand: part.quantityOnHand,
+        reorderThreshold: part.reorderThreshold,
+      });
+      expect(notificationsService.record).toHaveBeenCalledWith(
+        dataSource.manager,
+        expect.objectContaining({
+          aiNote:
+            'Possibly heavy recent usage. Check open work orders consuming this part.',
+        }),
+      );
+    });
+
+    it('still creates the notification with aiNote null when the AI returns nothing', async () => {
+      inventoryService.findAllLowStock.mockResolvedValue([part]);
+      notificationsService.hasActiveNotification.mockResolvedValue(false);
+      aiInsightsService.generate.mockResolvedValue(null);
+
+      await service.checkLowStock();
+
+      expect(notificationsService.record).toHaveBeenCalledWith(
+        dataSource.manager,
+        expect.objectContaining({
+          type: NotificationType.LOW_STOCK,
+          aiNote: null,
+        }),
+      );
+    });
+
+    it('does not call the AI for a part that already has an active notification', async () => {
+      inventoryService.findAllLowStock.mockResolvedValue([part]);
+      notificationsService.hasActiveNotification.mockResolvedValue(true);
+
+      await service.checkLowStock();
+
+      expect(aiInsightsService.generate).not.toHaveBeenCalled();
     });
   });
 });
