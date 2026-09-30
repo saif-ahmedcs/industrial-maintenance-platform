@@ -27,6 +27,7 @@
     "pretest:e2e": "cross-env NODE_ENV=test npm run migration:run",
     "seed": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-admin.ts",
     "seed:demo": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-demo-data.ts",
+    "seed:index-audit": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-index-audit-data.ts",
     "prepare": "husky"
   },
   "lint-staged": {
