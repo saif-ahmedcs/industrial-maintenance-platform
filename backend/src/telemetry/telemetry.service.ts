@@ -3,6 +3,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+import { randomUUID } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
@@ -10,6 +11,7 @@ import { REDIS_CLIENT } from '../redis/redis.module';
 import { TelemetryReadingDto } from './dto/telemetry-reading.dto';
 import { TelemetryReadingResponseDto } from './dto/telemetry-reading-response.dto';
 import { TelemetryReading } from './entities/telemetry-reading.entity';
+import { TelemetryJobData } from './interfaces/telemetry-job-data.interface';
 
 const POSTGRES_FOREIGN_KEY_VIOLATION = '23503';
 const TELEMETRY_SORTABLE_FIELDS = ['reading.recordedAt'];
@@ -33,21 +35,30 @@ export class TelemetryService {
     private readonly readings: Repository<TelemetryReading>,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     @InjectQueue('telemetry-processing')
-    private readonly telemetryQueue: Queue,
+    private readonly telemetryQueue: Queue<TelemetryJobData>,
   ) {}
 
-  async ingest(reading: TelemetryReadingDto): Promise<void> {
+  async ingest(
+    reading: TelemetryReadingDto,
+    correlationId?: string,
+  ): Promise<void> {
     const persisted = await this.persist(reading);
     if (!persisted) {
       return;
     }
+
+    const jobCorrelationId = correlationId ?? randomUUID();
 
     try {
       await this.redis.set(
         latestCacheKey(reading.assetId),
         JSON.stringify(reading),
       );
-      await this.telemetryQueue.add('reading', reading, {
+      const jobData: TelemetryJobData = {
+        reading,
+        correlationId: jobCorrelationId,
+      };
+      await this.telemetryQueue.add('reading', jobData, {
         attempts: 3,
         backoff: { type: 'exponential', delay: 1000 },
       });

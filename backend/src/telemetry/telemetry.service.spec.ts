@@ -49,10 +49,21 @@ describe('TelemetryService', () => {
       `telemetry:latest:${reading.assetId}`,
       JSON.stringify(reading),
     );
-    expect(queue.add).toHaveBeenCalledWith('reading', reading, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 1000 },
-    });
+    expect(queue.add).toHaveBeenCalledWith(
+      'reading',
+      { reading, correlationId: expect.any(String) },
+      { attempts: 3, backoff: { type: 'exponential', delay: 1000 } },
+    );
+  });
+
+  it('carries an explicitly provided correlationId onto the queued job', async () => {
+    await service.ingest(reading, 'corr-abc-123');
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'reading',
+      { reading, correlationId: 'corr-abc-123' },
+      { attempts: 3, backoff: { type: 'exponential', delay: 1000 } },
+    );
   });
 
   it('writes to Postgres before Redis and the queue', async () => {

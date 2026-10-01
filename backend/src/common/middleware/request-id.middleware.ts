@@ -17,12 +17,11 @@ export class RequestIdMiddleware implements NestMiddleware {
 
     RequestContext.run({ requestId }, () => {
       const start = Date.now();
-      this.logger.log(`--> ${req.method} ${req.originalUrl} [${requestId}]`);
-
+      this.logger.log(`--> ${req.method} ${req.originalUrl}`);
       res.on('finish', () => {
         const duration = Date.now() - start;
         this.logger.log(
-          `<-- ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms [${requestId}]`,
+          `<-- ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`,
         );
       });
 
