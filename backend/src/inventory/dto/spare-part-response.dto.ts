@@ -1,12 +1,29 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { SparePart } from '../entities/spare-part.entity';
 
 export class SparePartResponseDto {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   sku: string;
+
+  @ApiProperty()
   name: string;
+
+  @ApiProperty({
+    description:
+      'Current stock, reconstructable by summing inventory_transactions deltas',
+  })
   quantityOnHand: number;
+
+  @ApiProperty()
   reorderThreshold: number;
+
+  @ApiProperty()
   unitCost: number;
+
+  @ApiProperty({ description: 'Derived: quantityOnHand <= reorderThreshold' })
   isLowStock: boolean;
 
   static fromEntity(part: SparePart): SparePartResponseDto {

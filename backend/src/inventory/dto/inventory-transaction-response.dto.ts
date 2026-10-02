@@ -1,13 +1,33 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { InventoryTransaction } from '../entities/inventory-transaction.entity';
 
 export class InventoryTransactionResponseDto {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   sparePartId: string;
+
+  @ApiProperty({
+    description: 'Positive for restock, negative for consumption',
+  })
   deltaQuantity: number;
+
+  @ApiProperty({ enum: ['CONSUMED', 'RESTOCK', 'ADJUSTMENT'] })
   reason: string;
+
+  @ApiProperty({ nullable: true })
   workOrderId: string | null;
+
+  @ApiProperty({ nullable: true })
   createdByUserId: string | null;
+
+  @ApiProperty({
+    description: 'quantityOnHand snapshot immediately after this transaction',
+  })
   resultingQuantity: number;
+
+  @ApiProperty()
   createdAt: Date;
 
   static fromEntity(tx: InventoryTransaction): InventoryTransactionResponseDto {
