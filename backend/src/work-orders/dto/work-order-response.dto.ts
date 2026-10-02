@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   WorkOrder,
   WorkOrderPriority,
@@ -6,27 +7,69 @@ import {
 } from '../entities/work-order.entity';
 
 export class WorkOrderPartResponseDto {
+  @ApiProperty()
   sparePartId: string;
+
+  @ApiProperty()
   quantityUsed: number;
+
+  @ApiProperty({
+    description: 'Unit cost captured at the moment of completion',
+  })
   unitCostAtCompletion: number;
 }
 
 export class WorkOrderResponseDto {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   assetId: string;
+
+  @ApiProperty({ nullable: true, description: 'Null when source=AUTO' })
   maintenancePlanId: string | null;
+
+  @ApiProperty({ enum: WorkOrderStatus })
   status: WorkOrderStatus;
+
+  @ApiProperty({ enum: WorkOrderSource })
   source: WorkOrderSource;
+
+  @ApiProperty({ enum: WorkOrderPriority })
   priority: WorkOrderPriority;
+
+  @ApiProperty({ nullable: true })
   assignedToUserId: string | null;
+
+  @ApiProperty()
   description: string;
+
+  @ApiProperty()
   openedAt: Date;
+
+  @ApiProperty({ nullable: true })
   assignedAt: Date | null;
+
+  @ApiProperty({ nullable: true })
   startedAt: Date | null;
+
+  @ApiProperty({ nullable: true })
   completedAt: Date | null;
+
+  @ApiProperty({ nullable: true })
   cancelledAt: Date | null;
+
+  @ApiProperty({ nullable: true })
   totalCost: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'AI-generated diagnostic note, present only when enabled and successful',
+  })
   aiNote: string | null;
+
+  @ApiProperty({ type: () => WorkOrderPartResponseDto, isArray: true })
   parts: WorkOrderPartResponseDto[];
 
   static fromEntity(workOrder: WorkOrder): WorkOrderResponseDto {
