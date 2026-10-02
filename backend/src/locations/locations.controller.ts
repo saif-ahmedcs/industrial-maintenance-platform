@@ -10,6 +10,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -21,12 +27,20 @@ import { LocationResponseDto } from './dto/location-response.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { LocationsService } from './locations.service';
 
+@ApiTags('locations')
+@ApiBearerAuth('access-token')
 @Controller('locations')
 @UseGuards(RolesGuard)
 export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List locations (paginated)' })
+  @ApiOkResponse({
+    description: 'Paginated list of locations',
+    type: LocationResponseDto,
+    isArray: true,
+  })
   async findAll(@Query() query: PaginationQueryDto) {
     const result = await this.locationsService.findAll(query);
     return {
@@ -38,6 +52,8 @@ export class LocationsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get a single location by id' })
+  @ApiOkResponse({ type: LocationResponseDto })
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return LocationResponseDto.fromEntity(
       await this.locationsService.findOne(id),
@@ -46,6 +62,8 @@ export class LocationsController {
 
   @Post()
   @Roles(RoleName.ADMIN, RoleName.SUPERVISOR)
+  @ApiOperation({ summary: 'Create a location (ADMIN, SUPERVISOR)' })
+  @ApiOkResponse({ type: LocationResponseDto })
   async create(
     @Body() dto: CreateLocationDto,
     @CurrentUser() user: RequestUser,
@@ -57,6 +75,8 @@ export class LocationsController {
 
   @Patch(':id')
   @Roles(RoleName.ADMIN, RoleName.SUPERVISOR)
+  @ApiOperation({ summary: 'Update a location (ADMIN, SUPERVISOR)' })
+  @ApiOkResponse({ type: LocationResponseDto })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateLocationDto,
@@ -69,6 +89,7 @@ export class LocationsController {
 
   @Delete(':id')
   @Roles(RoleName.ADMIN, RoleName.SUPERVISOR)
+  @ApiOperation({ summary: 'Delete a location (ADMIN, SUPERVISOR)' })
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: RequestUser,
