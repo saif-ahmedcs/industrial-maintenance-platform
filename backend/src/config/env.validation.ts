@@ -12,8 +12,8 @@ export const envValidationSchema = Joi.object({
   POSTGRES_PASSWORD: Joi.string().required(),
   POSTGRES_DB: Joi.string().required(),
 
-  DEFAULT_ADMIN_EMAIL: Joi.string().email().default('admin@example.com'),
-  DEFAULT_ADMIN_PASSWORD: Joi.string().min(8).default('ChangeMe123!'),
+  DEFAULT_ADMIN_EMAIL: Joi.string().email().allow('').optional(),
+  DEFAULT_ADMIN_PASSWORD: Joi.string().allow('').optional(),
 
   JWT_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),

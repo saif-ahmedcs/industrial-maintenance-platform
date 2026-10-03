@@ -50,3 +50,20 @@ describe('envValidationSchema — AI insights', () => {
     expect(error).toBeUndefined();
   });
 });
+
+describe('envValidationSchema — admin seed variables', () => {
+  it('does not inject default admin credentials', () => {
+    const { value } = envValidationSchema.validate(baseEnv);
+    expect(value.DEFAULT_ADMIN_EMAIL).toBeUndefined();
+    expect(value.DEFAULT_ADMIN_PASSWORD).toBeUndefined();
+  });
+
+  it('still boots when the seed variables are present but blank', () => {
+    const { error } = envValidationSchema.validate({
+      ...baseEnv,
+      DEFAULT_ADMIN_EMAIL: '',
+      DEFAULT_ADMIN_PASSWORD: '',
+    });
+    expect(error).toBeUndefined();
+  });
+});

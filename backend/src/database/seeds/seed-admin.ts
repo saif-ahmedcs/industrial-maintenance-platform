@@ -2,10 +2,14 @@ import * as bcrypt from 'bcrypt';
 import AppDataSource from '../data-source';
 import { Role, RoleName } from '../../users/entities/role.entity';
 import { User } from '../../users/entities/user.entity';
+import { resolveDefaultAdminCredentials } from './admin-seed-config';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
 async function seed(): Promise<void> {
+  const { email: adminEmail, password: adminPassword } =
+    resolveDefaultAdminCredentials(process.env);
+
   await AppDataSource.initialize();
 
   const roleRepo = AppDataSource.getRepository(Role);
@@ -19,9 +23,6 @@ async function seed(): Promise<void> {
       'ADMIN role not found — run migrations first (roles are seeded by a migration, not this script)',
     );
   }
-
-  const adminEmail = process.env.DEFAULT_ADMIN_EMAIL ?? 'admin@example.com';
-  const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD ?? 'ChangeMe123!';
 
   const existingAdmin = await userRepo.findOne({
     where: { email: adminEmail },
