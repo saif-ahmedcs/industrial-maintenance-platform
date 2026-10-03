@@ -14,7 +14,13 @@ import { WorkOrdersService } from './work-orders.service';
 describe('WorkOrdersService.complete', () => {
   let service: WorkOrdersService;
   let workOrderRepo: { findOne: jest.Mock; createQueryBuilder: jest.Mock };
-  let manager: { findOneBy: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let manager: {
+    findOneBy: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let lockQb: { setLock: jest.Mock; where: jest.Mock; getOne: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let auditService: { record: jest.Mock };
   let inventoryService: { consume: jest.Mock };
@@ -54,9 +60,14 @@ describe('WorkOrdersService.complete', () => {
     } as MaintenancePlan;
 
     workOrderRepo = { findOne: jest.fn(), createQueryBuilder: jest.fn() };
+    lockQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => workOrder),
+    };
     manager = {
+      createQueryBuilder: jest.fn(() => lockQb),
       findOneBy: jest.fn(async (entity: unknown) => {
-        if (entity === WorkOrder) return workOrder;
         if (entity === Asset) return asset;
         if (entity === MaintenancePlan) return plan;
         return null;
@@ -79,7 +90,7 @@ describe('WorkOrdersService.complete', () => {
   });
 
   it('throws NotFoundException when the work order does not exist', async () => {
-    manager.findOneBy.mockResolvedValue(null);
+    lockQb.getOne.mockResolvedValue(null);
 
     await expect(
       service.complete('missing-id', {}, technician),
@@ -228,5 +239,69 @@ describe('WorkOrdersService.complete', () => {
     await expect(
       service.complete('wo-1', {}, supervisor),
     ).resolves.toBeDefined();
+  });
+
+  describe('concurrency safety', () => {
+    it('reads the work order under a pessimistic_write row lock', async () => {
+      await service.complete('wo-1', {}, technician);
+
+      expect(manager.createQueryBuilder).toHaveBeenCalledWith(
+        WorkOrder,
+        'workOrder',
+      );
+      expect(lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(lockQb.where).toHaveBeenCalledWith('workOrder.id = :id', {
+        id: 'wo-1',
+      });
+    });
+
+    it('locks the work order BEFORE consuming any spare part (fixed lock order)', async () => {
+      inventoryService.consume.mockResolvedValue({
+        sparePart: { id: 'part-1', sku: 'SKU-1', unitCost: 1 },
+        transaction: { id: 'txn-1' },
+      });
+
+      await service.complete(
+        'wo-1',
+        { parts: [{ sparePartId: 'part-1', quantityUsed: 1 }] },
+        technician,
+      );
+
+      const lockOrder = lockQb.getOne.mock.invocationCallOrder[0];
+      const consumeOrder = inventoryService.consume.mock.invocationCallOrder[0];
+      expect(lockOrder).toBeLessThan(consumeOrder);
+    });
+
+    it('rejects a second completion of an already COMPLETED work order without consuming stock', async () => {
+      workOrder.status = WorkOrderStatus.COMPLETED;
+
+      await expect(
+        service.complete(
+          'wo-1',
+          { parts: [{ sparePartId: 'part-1', quantityUsed: 5 }] },
+          technician,
+        ),
+      ).rejects.toThrow(ConflictException);
+
+      expect(inventoryService.consume).not.toHaveBeenCalled();
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['assign', () => service.assign('wo-1', {}, technician)],
+      ['start', () => service.start('wo-1', technician)],
+      ['cancel', () => service.cancel('wo-1', supervisor)],
+    ])(
+      '%s also reads the work order under a pessimistic_write lock',
+      async (_name, run) => {
+        workOrder.status =
+          _name === 'assign' ? WorkOrderStatus.OPEN : WorkOrderStatus.ASSIGNED;
+
+        await run();
+
+        expect(lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      },
+    );
   });
 });

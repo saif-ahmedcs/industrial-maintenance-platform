@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Asset, AssetStatus } from '../assets/entities/asset.entity';
 import { AuditService } from '../audit/audit.service';
 import { RequestUser } from '../auth/interfaces/request-user.interface';
@@ -50,6 +50,22 @@ export class WorkOrdersService {
       actor.roles.includes(RoleName.ADMIN) ||
       actor.roles.includes(RoleName.SUPERVISOR)
     );
+  }
+
+  private async lockWorkOrder(
+    manager: EntityManager,
+    id: string,
+  ): Promise<WorkOrder> {
+    const workOrder = await manager
+      .createQueryBuilder(WorkOrder, 'workOrder')
+      .setLock('pessimistic_write')
+      .where('workOrder.id = :id', { id })
+      .getOne();
+
+    if (!workOrder) {
+      throw new NotFoundException(`Work order ${id} not found`);
+    }
+    return workOrder;
   }
 
   async findAll(query: WorkOrderQueryDto): Promise<PaginatedResult<WorkOrder>> {
@@ -147,10 +163,7 @@ export class WorkOrdersService {
     actor: RequestUser,
   ): Promise<WorkOrder> {
     return this.dataSource.transaction(async (manager) => {
-      const workOrder = await manager.findOneBy(WorkOrder, { id });
-      if (!workOrder) {
-        throw new NotFoundException(`Work order ${id} not found`);
-      }
+      const workOrder = await this.lockWorkOrder(manager, id);
 
       const targetUserId = dto.assignedToUserId ?? actor.id;
       if (targetUserId !== actor.id && !this.isPrivileged(actor)) {
@@ -204,10 +217,7 @@ export class WorkOrdersService {
 
   async start(id: string, actor: RequestUser): Promise<WorkOrder> {
     return this.dataSource.transaction(async (manager) => {
-      const workOrder = await manager.findOneBy(WorkOrder, { id });
-      if (!workOrder) {
-        throw new NotFoundException(`Work order ${id} not found`);
-      }
+      const workOrder = await this.lockWorkOrder(manager, id);
 
       if (
         workOrder.assignedToUserId !== actor.id &&
@@ -244,10 +254,7 @@ export class WorkOrdersService {
 
   async cancel(id: string, actor: RequestUser): Promise<WorkOrder> {
     return this.dataSource.transaction(async (manager) => {
-      const workOrder = await manager.findOneBy(WorkOrder, { id });
-      if (!workOrder) {
-        throw new NotFoundException(`Work order ${id} not found`);
-      }
+      const workOrder = await this.lockWorkOrder(manager, id);
 
       assertValidWorkOrderTransition(
         workOrder.status,
@@ -279,10 +286,7 @@ export class WorkOrdersService {
     actor: RequestUser,
   ): Promise<WorkOrder> {
     return this.dataSource.transaction(async (manager) => {
-      const workOrder = await manager.findOneBy(WorkOrder, { id });
-      if (!workOrder) {
-        throw new NotFoundException(`Work order ${id} not found`);
-      }
+      const workOrder = await this.lockWorkOrder(manager, id);
 
       if (
         workOrder.assignedToUserId !== actor.id &&

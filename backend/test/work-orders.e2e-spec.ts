@@ -9,6 +9,8 @@ import { SparePart } from './../src/inventory/entities/spare-part.entity';
 import { RoleName } from './../src/users/entities/role.entity';
 import { registerAndLogin } from './utils/register-and-login';
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 describe('Work Orders — insufficient-stock rollback (e2e)', () => {
   let app: INestApplication<App>;
   let dataSource: DataSource;
@@ -189,5 +191,155 @@ describe('Work Orders — insufficient-stock rollback (e2e)', () => {
       (row: { action: string }) => row.action === 'COMPLETE',
     );
     expect(completeRows).toHaveLength(0);
+  });
+  describe('concurrent transitions on the same work order', () => {
+    async function createInProgressWorkOrder(description: string) {
+      const workOrderId = (
+        await request(app.getHttpServer())
+          .post('/work-orders')
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ assetId, description })
+          .expect(201)
+      ).body.id as string;
+
+      await request(app.getHttpServer())
+        .patch(`/work-orders/${workOrderId}/assign`)
+        .set('Authorization', `Bearer ${technicianToken}`)
+        .send({})
+        .expect(200);
+      await request(app.getHttpServer())
+        .patch(`/work-orders/${workOrderId}/start`)
+        .set('Authorization', `Bearer ${technicianToken}`)
+        .expect(200);
+
+      return workOrderId;
+    }
+
+    async function seedPart(quantityOnHand: number) {
+      const repo = dataSource.getRepository(SparePart);
+      return repo.save(
+        repo.create({
+          sku: `RACE-${Date.now()}-${Math.floor(Math.random() * 1e9)}`,
+          name: 'Race test part',
+          quantityOnHand,
+          reorderThreshold: 0,
+          unitCost: 4,
+        }),
+      );
+    }
+
+    async function withSparePartLockHeld<T>(
+      sparePartId: string,
+      body: (release: () => Promise<void>) => Promise<T>,
+    ): Promise<T> {
+      const holder = dataSource.createQueryRunner();
+      await holder.connect();
+      await holder.startTransaction();
+      await holder.query(
+        `SELECT id FROM spare_parts WHERE id = $1 FOR UPDATE`,
+        [sparePartId],
+      );
+      let released = false;
+      const release = async () => {
+        if (released) return;
+        released = true;
+        await holder.rollbackTransaction();
+      };
+      try {
+        return await body(release);
+      } finally {
+        await release().catch(() => undefined);
+        await holder.release();
+      }
+    }
+
+    it('processes a double-submitted completion exactly once (no double inventory debit)', async () => {
+      const part = await seedPart(20);
+      const workOrderId = await createInProgressWorkOrder('Double submit');
+
+      const complete = () =>
+        request(app.getHttpServer())
+          .patch(`/work-orders/${workOrderId}/complete`)
+          .set('Authorization', `Bearer ${technicianToken}`)
+          .send({ parts: [{ sparePartId: part.id, quantityUsed: 5 }] })
+          .then((res) => res);
+
+      const statuses = await withSparePartLockHeld(part.id, async (release) => {
+        const first = complete();
+        const second = complete();
+        await sleep(750); // both requests are now in flight and stalled
+        await release();
+        return (await Promise.all([first, second])).map((r) => r.status);
+      });
+
+      expect([...statuses].sort()).toEqual([200, 409]);
+
+      const partAfter = await dataSource
+        .getRepository(SparePart)
+        .findOneByOrFail({ id: part.id });
+      expect(partAfter.quantityOnHand).toBe(15);
+
+      const txns = await dataSource
+        .getRepository(InventoryTransaction)
+        .find({ where: { workOrderId } });
+      expect(txns).toHaveLength(1);
+      expect(txns[0].deltaQuantity).toBe(-5);
+
+      const workOrderAfter = (
+        await request(app.getHttpServer())
+          .get(`/work-orders/${workOrderId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200)
+      ).body;
+      expect(workOrderAfter.status).toBe('COMPLETED');
+      expect(workOrderAfter.parts).toHaveLength(1);
+      expect(workOrderAfter.totalCost).toBe(20);
+    });
+
+    it('does not let a concurrent cancel overwrite a completion that is in flight', async () => {
+      const part = await seedPart(20);
+      const workOrderId = await createInProgressWorkOrder('Cancel vs complete');
+
+      const complete = () =>
+        request(app.getHttpServer())
+          .patch(`/work-orders/${workOrderId}/complete`)
+          .set('Authorization', `Bearer ${technicianToken}`)
+          .send({ parts: [{ sparePartId: part.id, quantityUsed: 5 }] })
+          .then((res) => res);
+      const cancel = () =>
+        request(app.getHttpServer())
+          .patch(`/work-orders/${workOrderId}/cancel`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .then((res) => res);
+
+      const [completeRes, cancelRes] = await withSparePartLockHeld(
+        part.id,
+        async (release) => {
+          const c1 = complete();
+          await sleep(300); // let the completion start and take its locks
+          const c2 = cancel();
+          await sleep(750);
+          await release();
+          return Promise.all([c1, c2]);
+        },
+      );
+
+      expect(completeRes.status).toBe(200);
+      expect(cancelRes.status).toBe(409);
+
+      const workOrderAfter = (
+        await request(app.getHttpServer())
+          .get(`/work-orders/${workOrderId}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200)
+      ).body;
+      expect(workOrderAfter.status).toBe('COMPLETED');
+      expect(workOrderAfter.cancelledAt).toBeNull();
+
+      const partAfter = await dataSource
+        .getRepository(SparePart)
+        .findOneByOrFail({ id: part.id });
+      expect(partAfter.quantityOnHand).toBe(15);
+    });
   });
 });
