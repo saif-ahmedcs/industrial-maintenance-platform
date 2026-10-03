@@ -68,6 +68,22 @@ export class WorkOrdersService {
     return workOrder;
   }
 
+  private async lockAsset(
+    manager: EntityManager,
+    assetId: string,
+  ): Promise<Asset> {
+    const asset = await manager
+      .createQueryBuilder(Asset, 'asset')
+      .setLock('pessimistic_write')
+      .where('asset.id = :id', { id: assetId })
+      .getOne();
+
+    if (!asset) {
+      throw new NotFoundException(`Asset ${assetId} not found`);
+    }
+    return asset;
+  }
+
   async findAll(query: WorkOrderQueryDto): Promise<PaginatedResult<WorkOrder>> {
     const qb = this.workOrderRepo.createQueryBuilder('workOrder');
     if (query.assetId) {
@@ -332,10 +348,7 @@ export class WorkOrdersService {
       const savedWorkOrder = await manager.save(workOrder);
       savedWorkOrder.workOrderParts = createdParts;
 
-      const asset = await manager.findOneBy(Asset, { id: workOrder.assetId });
-      if (!asset) {
-        throw new NotFoundException(`Asset ${workOrder.assetId} not found`);
-      }
+      const asset = await this.lockAsset(manager, workOrder.assetId);
       const assetStatusBefore = asset.status;
       const assetStatusChanged = assetStatusBefore !== AssetStatus.OPERATIONAL;
       let savedAsset = asset;

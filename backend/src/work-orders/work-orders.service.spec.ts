@@ -21,6 +21,7 @@ describe('WorkOrdersService.complete', () => {
     createQueryBuilder: jest.Mock;
   };
   let lockQb: { setLock: jest.Mock; where: jest.Mock; getOne: jest.Mock };
+  let assetLockQb: { setLock: jest.Mock; where: jest.Mock; getOne: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let auditService: { record: jest.Mock };
   let inventoryService: { consume: jest.Mock };
@@ -65,10 +66,16 @@ describe('WorkOrdersService.complete', () => {
       where: jest.fn().mockReturnThis(),
       getOne: jest.fn(async () => workOrder),
     };
+    assetLockQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => asset),
+    };
     manager = {
-      createQueryBuilder: jest.fn(() => lockQb),
+      createQueryBuilder: jest.fn((entity: unknown) =>
+        entity === Asset ? assetLockQb : lockQb,
+      ),
       findOneBy: jest.fn(async (entity: unknown) => {
-        if (entity === Asset) return asset;
         if (entity === MaintenancePlan) return plan;
         return null;
       }),
@@ -286,6 +293,36 @@ describe('WorkOrdersService.complete', () => {
       expect(inventoryService.consume).not.toHaveBeenCalled();
       expect(manager.save).not.toHaveBeenCalled();
       expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it('reads the asset under a pessimistic_write lock, after the spare parts', async () => {
+      inventoryService.consume.mockResolvedValue({
+        sparePart: { id: 'part-1', sku: 'SKU-1', unitCost: 1 },
+        transaction: { id: 'txn-1' },
+      });
+
+      await service.complete(
+        'wo-1',
+        { parts: [{ sparePartId: 'part-1', quantityUsed: 1 }] },
+        technician,
+      );
+
+      expect(manager.createQueryBuilder).toHaveBeenCalledWith(Asset, 'asset');
+      expect(assetLockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(assetLockQb.where).toHaveBeenCalledWith('asset.id = :id', {
+        id: 'asset-1',
+      });
+      expect(inventoryService.consume.mock.invocationCallOrder[0]).toBeLessThan(
+        assetLockQb.getOne.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('throws NotFoundException when the asset no longer exists', async () => {
+      assetLockQb.getOne.mockResolvedValue(null);
+
+      await expect(service.complete('wo-1', {}, technician)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it.each([

@@ -192,6 +192,35 @@ describe('Work Orders — insufficient-stock rollback (e2e)', () => {
     );
     expect(completeRows).toHaveLength(0);
   });
+  it('forbids a VIEWER from assigning (or self-assigning) a work order', async () => {
+    const viewerToken = (
+      await registerAndLogin(app, dataSource, { emailPrefix: 'wo-e2e-viewer' })
+    ).accessToken;
+
+    const workOrderId = (
+      await request(app.getHttpServer())
+        .post('/work-orders')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assetId, description: 'Viewer assign test' })
+        .expect(201)
+    ).body.id;
+
+    await request(app.getHttpServer())
+      .patch(`/work-orders/${workOrderId}/assign`)
+      .set('Authorization', `Bearer ${viewerToken}`)
+      .send({})
+      .expect(403);
+
+    const after = (
+      await request(app.getHttpServer())
+        .get(`/work-orders/${workOrderId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200)
+    ).body;
+    expect(after.status).toBe('OPEN');
+    expect(after.assignedToUserId).toBeNull();
+  });
+
   describe('concurrent transitions on the same work order', () => {
     async function createInProgressWorkOrder(description: string) {
       const workOrderId = (

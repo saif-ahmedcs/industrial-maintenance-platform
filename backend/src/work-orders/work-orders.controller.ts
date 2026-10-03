@@ -79,8 +79,10 @@ export class WorkOrdersController {
   }
 
   @Patch(':id/assign')
+  @Roles(RoleName.ADMIN, RoleName.SUPERVISOR, RoleName.TECHNICIAN)
   @ApiOperation({
-    summary: 'Assign a work order to self or another user (OPEN/ASSIGNED only)',
+    summary:
+      'Assign a work order to self or another user (OPEN/ASSIGNED only; ADMIN, SUPERVISOR, TECHNICIAN)',
   })
   @ApiOkResponse({ type: WorkOrderResponseDto })
   @ApiConflictResponse({
