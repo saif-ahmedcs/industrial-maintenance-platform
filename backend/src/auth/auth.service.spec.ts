@@ -56,8 +56,6 @@ describe('AuthService', () => {
     refreshTokenRepo = {
       findOne: jest.fn(),
       create: jest.fn((partial) => partial),
-      // Mimic TypeORM: save() assigns a generated id back onto the same
-      // object reference when one isn't set yet, and always returns it.
       save: jest.fn(async (record) => {
         if (!record.id) {
           record.id = `generated-${Math.random().toString(36).slice(2)}`;
@@ -274,7 +272,6 @@ describe('AuthService', () => {
       );
 
       expect(refreshTokenRepo.update).toHaveBeenCalled();
-      // Throwing inside the transaction would roll the revocation back.
       expect(rolledBack).toBe(false);
     });
 
@@ -294,6 +291,75 @@ describe('AuthService', () => {
         where: { id: 'user-1' },
       });
       expect(manager.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('revokes exactly the live token presented', async () => {
+      const liveRecord: any = {
+        id: 'refresh-current',
+        userId: 'user-1',
+        revokedAt: null,
+        replacedById: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      };
+      refreshTokenRepo.findOne.mockResolvedValue(liveRecord);
+
+      await service.logout('current-live-token');
+
+      expect(liveRecord.revokedAt).not.toBeNull();
+      expect(refreshTokenRepo.save).toHaveBeenCalledWith(liveRecord);
+    });
+
+    it('does not chain-walk: a superseded token cannot revoke its live descendant', async () => {
+      const deadPresentedToken = {
+        id: 'refresh-ancient',
+        userId: 'victim',
+        revokedAt: new Date(Date.now() - 1000 * 60 * 60),
+        replacedById: 'refresh-live',
+        expiresAt: new Date(Date.now() + 60_000),
+      };
+      refreshTokenRepo.findOne.mockResolvedValue(deadPresentedToken);
+
+      await service.logout('ancient-superseded-token');
+
+      expect(refreshTokenRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(refreshTokenRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('is a silent no-op for an expired-but-never-revoked token', async () => {
+      refreshTokenRepo.findOne.mockResolvedValue({
+        id: 'refresh-expired',
+        userId: 'user-1',
+        revokedAt: null,
+        replacedById: null,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      await expect(service.logout('expired-token')).resolves.toBeUndefined();
+      expect(refreshTokenRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('is a silent no-op for a token that does not exist', async () => {
+      refreshTokenRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.logout('unknown-token')).resolves.toBeUndefined();
+      expect(refreshTokenRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('is idempotent: logging out an already-revoked token again is a no-op, not an error', async () => {
+      refreshTokenRepo.findOne.mockResolvedValue({
+        id: 'refresh-current',
+        userId: 'user-1',
+        revokedAt: new Date(),
+        replacedById: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await expect(
+        service.logout('already-logged-out-token'),
+      ).resolves.toBeUndefined();
+      expect(refreshTokenRepo.save).not.toHaveBeenCalled();
     });
   });
 });

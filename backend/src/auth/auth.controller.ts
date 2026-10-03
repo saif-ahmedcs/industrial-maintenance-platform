@@ -82,7 +82,7 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
   @ApiOperation({
-    summary: 'Revoke a refresh token (and its full rotation chain)',
+    summary: 'Revoke exactly the refresh token presented, if it is still live',
   })
   async logout(@Body() dto: RefreshDto): Promise<void> {
     await this.authService.logout(dto.refreshToken);

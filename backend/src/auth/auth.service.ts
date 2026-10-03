@@ -137,21 +137,20 @@ export class AuthService {
 
   async logout(presentedToken: string): Promise<void> {
     const tokenHash = this.hashToken(presentedToken);
-    let current = await this.refreshTokenRepo.findOne({ where: { tokenHash } });
-    if (!current) return;
+    const current = await this.refreshTokenRepo.findOne({
+      where: { tokenHash },
+    });
 
-    while (current.revokedAt && current.replacedById) {
-      const next = await this.refreshTokenRepo.findOne({
-        where: { id: current.replacedById },
-      });
-      if (!next) break;
-      current = next;
+    if (
+      !current ||
+      current.revokedAt ||
+      current.expiresAt.getTime() < Date.now()
+    ) {
+      return;
     }
 
-    if (!current.revokedAt) {
-      current.revokedAt = new Date();
-      await this.refreshTokenRepo.save(current);
-    }
+    current.revokedAt = new Date();
+    await this.refreshTokenRepo.save(current);
   }
 
   private signAccessToken(user: User): string {
