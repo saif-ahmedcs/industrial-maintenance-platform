@@ -2,6 +2,8 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { RoleName } from '../users/entities/role.entity';
+import { User } from '../users/entities/user.entity';
+import { RefreshToken } from './entities/refresh-token.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -20,6 +22,16 @@ describe('AuthService', () => {
     create: jest.Mock;
     update: jest.Mock;
   };
+
+  let lockQb: { setLock: jest.Mock; where: jest.Mock; getOne: jest.Mock };
+  let manager: {
+    createQueryBuilder: jest.Mock;
+    findOne: jest.Mock;
+    save: jest.Mock;
+    getRepository: jest.Mock;
+  };
+  let dataSource: { transaction: jest.Mock };
+  let rolledBack: boolean;
 
   const viewerRole = { id: 'role-viewer', name: RoleName.VIEWER };
 
@@ -55,12 +67,36 @@ describe('AuthService', () => {
       update: jest.fn(async () => undefined),
     };
 
+    lockQb = {
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn(),
+    };
+    manager = {
+      createQueryBuilder: jest.fn(() => lockQb),
+      findOne: jest.fn(),
+      save: jest.fn(async (record) => record),
+      getRepository: jest.fn(() => refreshTokenRepo),
+    };
+    rolledBack = false;
+    dataSource = {
+      transaction: jest.fn(async (cb) => {
+        try {
+          return await cb(manager);
+        } catch (err) {
+          rolledBack = true;
+          throw err;
+        }
+      }),
+    };
+
     service = new AuthService(
       usersService as any,
       jwtService as any,
       config as any,
       roleRepo as any,
       refreshTokenRepo as any,
+      dataSource as any,
     );
   });
 
@@ -141,15 +177,18 @@ describe('AuthService', () => {
       roles: [viewerRole],
     };
 
+    beforeEach(() => {
+      manager.findOne.mockResolvedValue(activeUser);
+    });
+
     it('rotates: issues a new token and revokes the old one, linked by replacedById', async () => {
       const existingRecord: any = {
         id: 'refresh-1',
         userId: 'user-1',
         revokedAt: null,
         expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-        user: activeUser,
       };
-      refreshTokenRepo.findOne.mockResolvedValue(existingRecord);
+      lockQb.getOne.mockResolvedValue(existingRecord);
 
       const result = await service.refresh('some-presented-token');
 
@@ -165,9 +204,8 @@ describe('AuthService', () => {
         userId: 'user-1',
         revokedAt: new Date(),
         expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-        user: activeUser,
       };
-      refreshTokenRepo.findOne.mockResolvedValue(revokedRecord);
+      lockQb.getOne.mockResolvedValue(revokedRecord);
 
       await expect(service.refresh('stolen-reused-token')).rejects.toThrow(
         UnauthorizedException,
@@ -179,12 +217,11 @@ describe('AuthService', () => {
     });
 
     it('rejects an expired refresh token', async () => {
-      refreshTokenRepo.findOne.mockResolvedValue({
+      lockQb.getOne.mockResolvedValue({
         id: 'refresh-1',
         userId: 'user-1',
         revokedAt: null,
         expiresAt: new Date(Date.now() - 1000),
-        user: activeUser,
       });
 
       await expect(service.refresh('expired-token')).rejects.toThrow(
@@ -193,11 +230,70 @@ describe('AuthService', () => {
     });
 
     it('rejects a token that does not exist at all', async () => {
-      refreshTokenRepo.findOne.mockResolvedValue(null);
+      lockQb.getOne.mockResolvedValue(null);
 
       await expect(service.refresh('unknown-token')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+
+    it('locks the presented token row (pessimistic_write) inside a transaction', async () => {
+      lockQb.getOne.mockResolvedValue({
+        id: 'refresh-1',
+        userId: 'user-1',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await service.refresh('some-presented-token');
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(manager.createQueryBuilder).toHaveBeenCalledWith(
+        RefreshToken,
+        'token',
+      );
+      expect(lockQb.setLock).toHaveBeenCalledWith('pessimistic_write');
+      expect(manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'refresh-1',
+          revokedAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('commits the family revocation on reuse instead of rolling it back', async () => {
+      lockQb.getOne.mockResolvedValue({
+        id: 'refresh-1',
+        userId: 'user-1',
+        revokedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await expect(service.refresh('stolen-reused-token')).rejects.toThrow(
+        'Refresh token has already been used',
+      );
+
+      expect(refreshTokenRepo.update).toHaveBeenCalled();
+      // Throwing inside the transaction would roll the revocation back.
+      expect(rolledBack).toBe(false);
+    });
+
+    it('loads the user separately and rejects an inactive account', async () => {
+      lockQb.getOne.mockResolvedValue({
+        id: 'refresh-1',
+        userId: 'user-1',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      });
+      manager.findOne.mockResolvedValue({ ...activeUser, isActive: false });
+
+      await expect(service.refresh('some-presented-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(manager.findOne).toHaveBeenCalledWith(User, {
+        where: { id: 'user-1' },
+      });
+      expect(manager.save).not.toHaveBeenCalled();
     });
   });
 });

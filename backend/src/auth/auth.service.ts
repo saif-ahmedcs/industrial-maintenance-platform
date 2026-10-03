@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
-import { IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { Role, RoleName } from '../users/entities/role.entity';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -33,6 +33,7 @@ export class AuthService {
     private readonly roleRepo: Repository<Role>,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepo: Repository<RefreshToken>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async register(email: string, password: string): Promise<User> {
@@ -78,38 +79,60 @@ export class AuthService {
 
   async refresh(presentedToken: string): Promise<AuthTokens> {
     const tokenHash = this.hashToken(presentedToken);
-    const existing = await this.refreshTokenRepo.findOne({
-      where: { tokenHash },
-      relations: { user: true },
-    });
 
-    if (!existing) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    const outcome = await this.dataSource.transaction(
+      async (
+        manager,
+      ): Promise<
+        { reuseDetected: true } | { reuseDetected: false; tokens: AuthTokens }
+      > => {
+        const existing = await manager
+          .createQueryBuilder(RefreshToken, 'token')
+          .setLock('pessimistic_write')
+          .where('token.tokenHash = :tokenHash', { tokenHash })
+          .getOne();
 
-    if (existing.revokedAt) {
-      await this.revokeAllForUser(existing.userId);
+        if (!existing) {
+          throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        if (existing.revokedAt) {
+          await this.revokeAllForUser(existing.userId, manager);
+          return { reuseDetected: true };
+        }
+
+        if (existing.expiresAt.getTime() < Date.now()) {
+          throw new UnauthorizedException('Refresh token has expired');
+        }
+
+        const user = await manager.findOne(User, {
+          where: { id: existing.userId },
+        });
+        if (!user || !user.isActive) {
+          throw new UnauthorizedException('Account is no longer active');
+        }
+
+        const { token: newRefreshToken, record: newRecord } =
+          await this.issueRefreshToken(user.id, manager);
+
+        existing.revokedAt = new Date();
+        existing.replacedById = newRecord.id;
+        await manager.save(existing);
+
+        return {
+          reuseDetected: false,
+          tokens: {
+            accessToken: this.signAccessToken(user),
+            refreshToken: newRefreshToken,
+          },
+        };
+      },
+    );
+
+    if (outcome.reuseDetected) {
       throw new UnauthorizedException('Refresh token has already been used');
     }
-
-    if (existing.expiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('Refresh token has expired');
-    }
-
-    const user = existing.user;
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Account is no longer active');
-    }
-
-    const { token: newRefreshToken, record: newRecord } =
-      await this.issueRefreshToken(user.id);
-
-    existing.revokedAt = new Date();
-    existing.replacedById = newRecord.id;
-    await this.refreshTokenRepo.save(existing);
-
-    const accessToken = this.signAccessToken(user);
-    return { accessToken, refreshToken: newRefreshToken };
+    return outcome.tokens;
   }
 
   async logout(presentedToken: string): Promise<void> {
@@ -146,26 +169,36 @@ export class AuthService {
 
   private async issueRefreshToken(
     userId: string,
+    manager?: EntityManager,
   ): Promise<{ token: string; record: RefreshToken }> {
+    const repo = manager
+      ? manager.getRepository(RefreshToken)
+      : this.refreshTokenRepo;
     const token = randomBytes(64).toString('hex');
     const tokenHash = this.hashToken(token);
     const days = this.config.get<number>('JWT_REFRESH_EXPIRES_IN_DAYS') ?? 7;
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
-    const record = this.refreshTokenRepo.create({
+    const record = repo.create({
       userId,
       tokenHash,
       expiresAt,
       revokedAt: null,
       replacedById: null,
     });
-    await this.refreshTokenRepo.save(record);
+    await repo.save(record);
 
     return { token, record };
   }
 
-  private async revokeAllForUser(userId: string): Promise<void> {
-    await this.refreshTokenRepo.update(
+  private async revokeAllForUser(
+    userId: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const repo = manager
+      ? manager.getRepository(RefreshToken)
+      : this.refreshTokenRepo;
+    await repo.update(
       { userId, revokedAt: IsNull() },
       { revokedAt: new Date() },
     );

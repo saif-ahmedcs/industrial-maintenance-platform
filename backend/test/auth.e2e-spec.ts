@@ -2,10 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { createHash } from 'node:crypto';
+import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
+  let dataSource: DataSource;
   const email = `auth-e2e-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
   const password = 'CorrectHorseBattery9!';
 
@@ -22,6 +25,7 @@ describe('Auth (e2e)', () => {
         transform: true,
       }),
     );
+    dataSource = moduleFixture.get(DataSource);
     await app.init();
   });
 
@@ -97,6 +101,56 @@ describe('Auth (e2e)', () => {
     await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email, password: 'wrong-password' })
+      .expect(401);
+  });
+
+  it('treats two concurrent refreshes of the same token as reuse: one wins, the other is rejected, and the family is revoked', async () => {
+    const raceEmail = `auth-race-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: raceEmail, password })
+      .expect(201);
+    const { refreshToken } = (
+      await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: raceEmail, password })
+        .expect(200)
+    ).body as { refreshToken: string };
+
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex');
+
+    const holder = dataSource.createQueryRunner();
+    await holder.connect();
+    await holder.startTransaction();
+    await holder.query(
+      `SELECT id FROM refresh_tokens WHERE token_hash = $1 FOR UPDATE`,
+      [tokenHash],
+    );
+
+    const refresh = () =>
+      request(app.getHttpServer())
+        .post('/auth/refresh')
+        .send({ refreshToken })
+        .then((res) => res);
+
+    let responses: request.Response[];
+    try {
+      const first = refresh();
+      const second = refresh();
+      await new Promise((resolve) => setTimeout(resolve, 750));
+      await holder.rollbackTransaction();
+      responses = await Promise.all([first, second]);
+    } finally {
+      if (holder.isTransactionActive) await holder.rollbackTransaction();
+      await holder.release();
+    }
+
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 401]);
+
+    const winner = responses.find((r) => r.status === 200)!;
+    await request(app.getHttpServer())
+      .post('/auth/refresh')
+      .send({ refreshToken: winner.body.refreshToken })
       .expect(401);
   });
 });
