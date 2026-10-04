@@ -127,6 +127,7 @@ export class WorkOrdersController {
   }
 
   @Patch(':id/complete')
+  @Roles(RoleName.ADMIN, RoleName.SUPERVISOR, RoleName.TECHNICIAN)
   @ApiOperation({
     summary: 'Complete a work order',
     description:

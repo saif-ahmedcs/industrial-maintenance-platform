@@ -341,4 +341,43 @@ describe('WorkOrdersService.complete', () => {
       },
     );
   });
+  describe('assign ownership', () => {
+    it('rejects a technician self-assigning a work order owned by another technician', async () => {
+      workOrder.status = WorkOrderStatus.ASSIGNED;
+      workOrder.assignedToUserId = 'tech-2';
+
+      await expect(service.assign('wo-1', {}, technician)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it('lets the current assignee re-assign to themselves', async () => {
+      workOrder.status = WorkOrderStatus.ASSIGNED;
+      workOrder.assignedToUserId = 'tech-1';
+
+      await expect(
+        service.assign('wo-1', {}, technician),
+      ).resolves.toMatchObject({ assignedToUserId: 'tech-1' });
+    });
+
+    it('lets a supervisor reassign a work order owned by a technician', async () => {
+      workOrder.status = WorkOrderStatus.ASSIGNED;
+      workOrder.assignedToUserId = 'tech-2';
+
+      await expect(
+        service.assign('wo-1', { assignedToUserId: 'tech-1' }, supervisor),
+      ).resolves.toMatchObject({ assignedToUserId: 'tech-1' });
+    });
+
+    it('keeps a 409 for a non-assignable status even when owned by someone else', async () => {
+      workOrder.status = WorkOrderStatus.IN_PROGRESS;
+      workOrder.assignedToUserId = 'tech-2';
+
+      await expect(service.assign('wo-1', {}, technician)).rejects.toThrow(
+        ConflictException,
+      );
+    });
+  });
 });

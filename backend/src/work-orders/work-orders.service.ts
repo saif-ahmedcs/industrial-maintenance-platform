@@ -197,6 +197,16 @@ export class WorkOrdersService {
         );
       }
 
+      if (
+        workOrder.assignedToUserId &&
+        workOrder.assignedToUserId !== actor.id &&
+        !this.isPrivileged(actor)
+      ) {
+        throw new ForbiddenException(
+          'Work order is already assigned to another user',
+        );
+      }
+
       const before = {
         status: workOrder.status,
         assignedToUserId: workOrder.assignedToUserId,

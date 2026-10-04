@@ -9,10 +9,10 @@ describe('resolveDefaultAdminCredentials', () => {
   it('returns the configured credentials', () => {
     expect(
       resolveDefaultAdminCredentials({
-        DEFAULT_ADMIN_EMAIL: 'ops@plant.example',
+        DEFAULT_ADMIN_EMAIL: 'ops@plant.com',
         DEFAULT_ADMIN_PASSWORD: STRONG_PASSWORD,
       }),
-    ).toEqual({ email: 'ops@plant.example', password: STRONG_PASSWORD });
+    ).toEqual({ email: 'ops@plant.com', password: STRONG_PASSWORD });
   });
 
   it('fails when DEFAULT_ADMIN_EMAIL is unset (no fallback)', () => {
@@ -26,7 +26,7 @@ describe('resolveDefaultAdminCredentials', () => {
   it('fails when DEFAULT_ADMIN_PASSWORD is unset (no fallback)', () => {
     expect(() =>
       resolveDefaultAdminCredentials({
-        DEFAULT_ADMIN_EMAIL: 'ops@plant.example',
+        DEFAULT_ADMIN_EMAIL: 'ops@plant.com',
       }),
     ).toThrow(/DEFAULT_ADMIN_PASSWORD is required/);
   });
@@ -44,7 +44,7 @@ describe('resolveDefaultAdminCredentials', () => {
     for (const known of KNOWN_INSECURE_ADMIN_PASSWORDS) {
       expect(() =>
         resolveDefaultAdminCredentials({
-          DEFAULT_ADMIN_EMAIL: 'ops@plant.example',
+          DEFAULT_ADMIN_EMAIL: 'ops@plant.com',
           DEFAULT_ADMIN_PASSWORD: known,
         }),
       ).toThrow(/publicly known demo value/);
@@ -54,7 +54,7 @@ describe('resolveDefaultAdminCredentials', () => {
   it('rejects passwords shorter than 12 characters', () => {
     expect(() =>
       resolveDefaultAdminCredentials({
-        DEFAULT_ADMIN_EMAIL: 'ops@plant.example',
+        DEFAULT_ADMIN_EMAIL: 'ops@plant.com',
         DEFAULT_ADMIN_PASSWORD: 'short-pass1',
       }),
     ).toThrow(/at least 12 characters/);
