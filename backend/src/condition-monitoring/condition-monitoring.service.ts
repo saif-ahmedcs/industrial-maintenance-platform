@@ -48,7 +48,7 @@ export class ConditionMonitoringService {
   async evaluateAsset(assetId: string): Promise<void> {
     const recent = await this.readingRepo.find({
       where: { assetId },
-      order: { recordedAt: 'DESC' },
+      order: { ingestedAt: 'DESC' },
       take: CONSECUTIVE_HOT_READINGS_REQUIRED,
     });
 

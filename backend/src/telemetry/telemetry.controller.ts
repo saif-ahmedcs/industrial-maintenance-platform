@@ -4,7 +4,10 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { randomUUID } from 'node:crypto';
 import { RequestContext } from '../common/context/request-context';
-import { TelemetryReadingDto } from './dto/telemetry-reading.dto';
+import {
+  RECORDED_AT_TOLERANCE_MS,
+  TelemetryReadingDto,
+} from './dto/telemetry-reading.dto';
 import { TelemetryService } from './telemetry.service';
 
 @Controller()
@@ -40,6 +43,17 @@ export class TelemetryController {
           `Rejected malformed telemetry payload: ${JSON.stringify(payload)} — ${errors
             .map((e) => Object.values(e.constraints ?? {}).join(', '))
             .join('; ')}`,
+        );
+        return;
+      }
+
+      const driftMs = Math.abs(Date.now() - Date.parse(reading.recordedAt));
+      if (driftMs > RECORDED_AT_TOLERANCE_MS) {
+        this.logger.warn(
+          `Rejected telemetry reading for asset ${reading.assetId}: recordedAt ` +
+            `${reading.recordedAt} is ${driftMs}ms from the server clock, ` +
+            `outside the ${RECORDED_AT_TOLERANCE_MS}ms tolerance — a publisher-controlled ` +
+            `timestamp this far off cannot be trusted`,
         );
         return;
       }

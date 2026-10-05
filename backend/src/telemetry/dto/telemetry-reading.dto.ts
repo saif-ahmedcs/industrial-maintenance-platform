@@ -6,6 +6,8 @@ export const TELEMETRY_RANGES = {
   pressure: { min: 0, max: 500 },
 } as const;
 
+export const RECORDED_AT_TOLERANCE_MS = 5 * 60 * 1000;
+
 export class TelemetryReadingDto {
   @IsUUID()
   assetId: string;
