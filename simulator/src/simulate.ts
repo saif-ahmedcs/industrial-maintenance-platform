@@ -62,7 +62,9 @@ function topicFor(asset: SimulatedAsset): string {
 
 const host = process.env.MQTT_HOST ?? "localhost";
 const port = process.env.MQTT_PORT ?? "1883";
-const client = mqtt.connect(`mqtt://${host}:${port}`);
+const username = process.env.MQTT_USERNAME;
+const password = process.env.MQTT_PASSWORD;
+const client = mqtt.connect(`mqtt://${host}:${port}`, { username, password });
 
 client.on("connect", () => {
   console.log(

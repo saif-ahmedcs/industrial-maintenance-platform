@@ -78,6 +78,8 @@ jobs:
       REDIS_PORT: 6379
       MQTT_HOST: localhost
       MQTT_PORT: 1883
+      MQTT_SIMULATOR_PASSWORD: ci-only-dummy-simulator-password
+      MQTT_BACKEND_PASSWORD: ci-only-dummy-backend-password
       JWT_SECRET: ci-only-dummy-secret-value-not-for-prod-use
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN_DAYS: 7
@@ -88,8 +90,13 @@ jobs:
       - name: Start Mosquitto
         run: |
           docker run -d --name mqtt -p 1883:1883 \
+            -e MQTT_SIMULATOR_PASSWORD="$MQTT_SIMULATOR_PASSWORD" \
+            -e MQTT_BACKEND_PASSWORD="$MQTT_BACKEND_PASSWORD" \
             -v ${{ github.workspace }}/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf \
-            eclipse-mosquitto:2
+            -v ${{ github.workspace }}/docker/mosquitto_acl.conf:/mosquitto/config/acl.conf \
+            -v ${{ github.workspace }}/docker/mosquitto-entrypoint.sh:/mosquitto/config/mosquitto-entrypoint.sh \
+            --entrypoint /bin/sh \
+            eclipse-mosquitto:2 /mosquitto/config/mosquitto-entrypoint.sh
 
       - uses: actions/setup-node@v4
         with:

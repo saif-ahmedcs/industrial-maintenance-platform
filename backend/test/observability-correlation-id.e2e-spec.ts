@@ -1,17 +1,19 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { MicroserviceOptions } from '@nestjs/microservices';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import mqtt, { MqttClient } from 'mqtt';
+import { MqttClient } from 'mqtt';
 import { AppModule } from './../src/app.module';
 import { RoleName } from './../src/users/entities/role.entity';
 import { CorrelatedLogger } from './../src/common/logger/correlated-logger';
 import { registerAndLogin } from './utils/register-and-login';
 import { poll } from './utils/poll';
-
-const MQTT_URL = `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`;
+import {
+  backendMqttMicroserviceOptions,
+  connectAsSimulator,
+} from './utils/mqtt';
 
 describe('Observability — correlation id threading (e2e)', () => {
   let app: INestApplication<App>;
@@ -40,13 +42,9 @@ describe('Observability — correlation id threading (e2e)', () => {
       }),
     );
 
-    app.connectMicroservice<MicroserviceOptions>({
-      transport: Transport.MQTT,
-      options: {
-        url: MQTT_URL,
-        subscribeOptions: { qos: 1 },
-      },
-    });
+    app.connectMicroservice<MicroserviceOptions>(
+      backendMqttMicroserviceOptions(),
+    );
 
     dataSource = moduleFixture.get(DataSource);
 
@@ -68,11 +66,7 @@ describe('Observability — correlation id threading (e2e)', () => {
         return (rawStderrWrite as any)(chunk, ...args);
       });
 
-    mqttClient = mqtt.connect(MQTT_URL);
-    await new Promise<void>((resolve, reject) => {
-      mqttClient.once('connect', () => resolve());
-      mqttClient.once('error', reject);
-    });
+    mqttClient = await connectAsSimulator();
 
     adminToken = (
       await registerAndLogin(app, dataSource, {

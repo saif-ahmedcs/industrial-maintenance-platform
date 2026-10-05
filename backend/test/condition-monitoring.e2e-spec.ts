@@ -1,16 +1,18 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { MicroserviceOptions } from '@nestjs/microservices';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import mqtt, { MqttClient } from 'mqtt';
+import { MqttClient } from 'mqtt';
 import { AppModule } from './../src/app.module';
 import { RoleName } from './../src/users/entities/role.entity';
 import { registerAndLogin } from './utils/register-and-login';
 import { poll } from './utils/poll';
-
-const MQTT_URL = `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`;
+import {
+  backendMqttMicroserviceOptions,
+  connectAsSimulator,
+} from './utils/mqtt';
 
 describe('Condition Monitoring — hot-temperature rule (e2e)', () => {
   let app: INestApplication<App>;
@@ -38,27 +40,16 @@ describe('Condition Monitoring — hot-temperature rule (e2e)', () => {
       }),
     );
 
-    // Same real MQTT hybrid transport main.ts runs in production, and the
-    // same real BullMQ worker registered by ConditionMonitoringModule — no
-    // mocked-out stand-ins for either.
-    app.connectMicroservice<MicroserviceOptions>({
-      transport: Transport.MQTT,
-      options: {
-        url: MQTT_URL,
-        subscribeOptions: { qos: 1 },
-      },
-    });
+    app.connectMicroservice<MicroserviceOptions>(
+      backendMqttMicroserviceOptions(),
+    );
 
     dataSource = moduleFixture.get(DataSource);
 
     await app.init();
     await app.startAllMicroservices();
 
-    mqttClient = mqtt.connect(MQTT_URL);
-    await new Promise<void>((resolve, reject) => {
-      mqttClient.once('connect', () => resolve());
-      mqttClient.once('error', reject);
-    });
+    mqttClient = await connectAsSimulator();
 
     adminToken = (
       await registerAndLogin(app, dataSource, {

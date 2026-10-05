@@ -36,8 +36,14 @@ services:
     restart: unless-stopped
     ports:
       - "${MQTT_PORT}:1883"
+    environment:
+      MQTT_SIMULATOR_PASSWORD: ${MQTT_SIMULATOR_PASSWORD}
+      MQTT_BACKEND_PASSWORD: ${MQTT_BACKEND_PASSWORD}
+    entrypoint: ["/bin/sh", "/mosquitto/config/mosquitto-entrypoint.sh"]
     volumes:
       - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./docker/mosquitto_acl.conf:/mosquitto/config/acl.conf
+      - ./docker/mosquitto-entrypoint.sh:/mosquitto/config/mosquitto-entrypoint.sh
       - mosquitto_data:/mosquitto/data
 
   adminer:
@@ -55,6 +61,8 @@ services:
     environment:
       MQTT_HOST: mqtt
       MQTT_PORT: 1883
+      MQTT_USERNAME: simulator
+      MQTT_PASSWORD: ${MQTT_SIMULATOR_PASSWORD}
     depends_on:
       - mqtt
 

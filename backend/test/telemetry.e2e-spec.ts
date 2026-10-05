@@ -1,18 +1,20 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { MicroserviceOptions } from '@nestjs/microservices';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import mqtt, { MqttClient } from 'mqtt';
+import { MqttClient } from 'mqtt';
 import Redis from 'ioredis';
 import { AppModule } from './../src/app.module';
 import { RoleName } from './../src/users/entities/role.entity';
 import { REDIS_CLIENT } from './../src/redis/redis.module';
 import { registerAndLogin } from './utils/register-and-login';
 import { poll } from './utils/poll';
-
-const MQTT_URL = `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`;
+import {
+  backendMqttMicroserviceOptions,
+  connectAsSimulator,
+} from './utils/mqtt';
 
 describe('Telemetry MQTT Pipeline (e2e)', () => {
   let app: INestApplication<App>;
@@ -40,13 +42,9 @@ describe('Telemetry MQTT Pipeline (e2e)', () => {
     // Attach the same MQTT hybrid transport main.ts runs in production, so
     // this test proves the real @EventPattern handler works end to end —
     // not a mocked stand-in for it.
-    app.connectMicroservice<MicroserviceOptions>({
-      transport: Transport.MQTT,
-      options: {
-        url: MQTT_URL,
-        subscribeOptions: { qos: 1 },
-      },
-    });
+    app.connectMicroservice<MicroserviceOptions>(
+      backendMqttMicroserviceOptions(),
+    );
 
     dataSource = moduleFixture.get(DataSource);
     redis = moduleFixture.get(REDIS_CLIENT);
@@ -54,11 +52,7 @@ describe('Telemetry MQTT Pipeline (e2e)', () => {
     await app.init();
     await app.startAllMicroservices();
 
-    mqttClient = mqtt.connect(MQTT_URL);
-    await new Promise<void>((resolve, reject) => {
-      mqttClient.once('connect', () => resolve());
-      mqttClient.once('error', reject);
-    });
+    mqttClient = await connectAsSimulator();
 
     adminToken = (
       await registerAndLogin(app, dataSource, {

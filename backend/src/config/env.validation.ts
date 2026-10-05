@@ -24,6 +24,7 @@ export const envValidationSchema = Joi.object({
 
   MQTT_HOST: Joi.string().required(),
   MQTT_PORT: Joi.number().required(),
+  MQTT_BACKEND_PASSWORD: Joi.string().required(),
 
   AI_INSIGHTS_ENABLED: Joi.boolean().default(false),
   GROQ_API_KEY: Joi.when('AI_INSIGHTS_ENABLED', {

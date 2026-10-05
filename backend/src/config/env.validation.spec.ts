@@ -11,6 +11,7 @@ const baseEnv = {
   REDIS_PORT: '6379',
   MQTT_HOST: 'localhost',
   MQTT_PORT: '1883',
+  MQTT_BACKEND_PASSWORD: 'mqtt-backend-test-password',
 };
 
 describe('envValidationSchema — AI insights', () => {
@@ -47,6 +48,28 @@ describe('envValidationSchema — AI insights', () => {
       AI_INSIGHTS_ENABLED: 'true',
       GROQ_API_KEY: 'gsk_test',
     });
+    expect(error).toBeUndefined();
+  });
+});
+
+describe('envValidationSchema — MQTT auth', () => {
+  it('fails to boot without MQTT_BACKEND_PASSWORD (no default — the broker denies anonymous connections)', () => {
+    const { MQTT_BACKEND_PASSWORD: _omit, ...withoutPassword } = baseEnv;
+    const { error } = envValidationSchema.validate(withoutPassword);
+    expect(error).toBeDefined();
+    expect(error?.message).toContain('MQTT_BACKEND_PASSWORD');
+  });
+
+  it('fails to boot with a blank MQTT_BACKEND_PASSWORD', () => {
+    const { error } = envValidationSchema.validate({
+      ...baseEnv,
+      MQTT_BACKEND_PASSWORD: '',
+    });
+    expect(error).toBeDefined();
+  });
+
+  it('boots with MQTT_BACKEND_PASSWORD set', () => {
+    const { error } = envValidationSchema.validate(baseEnv);
     expect(error).toBeUndefined();
   });
 });

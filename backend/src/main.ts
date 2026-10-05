@@ -4,6 +4,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { CorrelatedLogger } from './common/logger/correlated-logger';
+import { buildBackendMqttOptions } from './common/mqtt/mqtt-connection-options';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -33,10 +34,11 @@ async function bootstrap() {
 
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.MQTT,
-    options: {
-      url: `mqtt://${process.env.MQTT_HOST}:${process.env.MQTT_PORT}`,
-      subscribeOptions: { qos: 1 },
-    },
+    options: buildBackendMqttOptions({
+      host: process.env.MQTT_HOST as string,
+      port: process.env.MQTT_PORT as string,
+      password: process.env.MQTT_BACKEND_PASSWORD as string,
+    }),
   });
 
   await app.startAllMicroservices();
