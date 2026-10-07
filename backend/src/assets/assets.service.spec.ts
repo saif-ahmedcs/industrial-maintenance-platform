@@ -4,6 +4,7 @@ import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { Location } from '../locations/entities/location.entity';
 import { RoleName } from '../users/entities/role.entity';
 import { AssetsService } from './assets.service';
+import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetStatus } from './entities/asset.entity';
 
 describe('AssetsService', () => {
@@ -43,6 +44,60 @@ describe('AssetsService', () => {
       auditService as any,
       assetHistoryService as any,
     );
+  });
+
+  describe('findAll', () => {
+    let qb: {
+      alias: string;
+      andWhere: jest.Mock;
+      orderBy: jest.Mock;
+      addOrderBy: jest.Mock;
+      skip: jest.Mock;
+      take: jest.Mock;
+      getManyAndCount: jest.Mock;
+    };
+
+    const query = (overrides: Partial<AssetQueryDto> = {}): AssetQueryDto =>
+      ({ page: 1, limit: 20, sortDir: 'DESC', ...overrides }) as AssetQueryDto;
+
+    beforeEach(() => {
+      qb = {
+        alias: 'asset',
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        addOrderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      assetRepo.createQueryBuilder.mockReturnValue(qb);
+    });
+
+    it('applies no status condition when no status is given', async () => {
+      await service.findAll(query());
+
+      expect(assetRepo.createQueryBuilder).toHaveBeenCalledWith('asset');
+      expect(qb.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('adds a parameterised status condition when a status is given', async () => {
+      await service.findAll(query({ status: AssetStatus.CRITICAL }));
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(1);
+      expect(qb.andWhere).toHaveBeenCalledWith('asset.status = :status', {
+        status: AssetStatus.CRITICAL,
+      });
+    });
+
+    it('still paginates and sorts a status-filtered query', async () => {
+      await service.findAll(
+        query({ status: AssetStatus.OPERATIONAL, page: 2, limit: 10 }),
+      );
+
+      expect(qb.orderBy).toHaveBeenCalledWith('asset.tag', 'DESC');
+      expect(qb.skip).toHaveBeenCalledWith(10);
+      expect(qb.take).toHaveBeenCalledWith(10);
+    });
   });
 
   describe('create', () => {

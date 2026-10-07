@@ -2,7 +2,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
+import { registerAndLogin } from './utils/register-and-login';
 
 const PASSWORD = 'CorrectHorseBattery9!';
 
@@ -73,5 +75,28 @@ describe('Rate limiting (e2e)', () => {
     const blocked = await attemptLogin();
     expect(blocked.status).toBe(429);
     expect(blocked.body.statusCode).toBe(429);
+  });
+
+  it('keys authenticated requests by user, so one user exhausting the limit does not block another user on the same IP', async () => {
+    const dataSource = app.get(DataSource);
+    const userA = await registerAndLogin(app, dataSource, {
+      emailPrefix: 'rl-user-a',
+    });
+    const userB = await registerAndLogin(app, dataSource, {
+      emailPrefix: 'rl-user-b',
+    });
+    const me = (accessToken: string) =>
+      request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+    for (let i = 0; i < 60; i++) {
+      await me(userA.accessToken).expect(200);
+    }
+    const blocked = await me(userA.accessToken);
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.statusCode).toBe(429);
+
+    await me(userB.accessToken).expect(200);
   });
 });

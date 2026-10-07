@@ -5,11 +5,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { CorrelatedLogger } from './common/logger/correlated-logger';
 import { buildBackendMqttOptions } from './common/mqtt/mqtt-connection-options';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useLogger(new CorrelatedLogger());
-
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

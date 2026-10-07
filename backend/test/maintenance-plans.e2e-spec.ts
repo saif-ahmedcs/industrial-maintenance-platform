@@ -230,4 +230,68 @@ describe('MaintenancePlans (e2e)', () => {
     expect(dueIds).not.toContain(notYetDueId);
     expect(dueIds).not.toContain(overdueButInactiveId);
   });
+
+  it('filters the list by assetId, returns an empty page for an unknown asset, and rejects a malformed assetId with 400', async () => {
+    const tag = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const { assetTypeId, locationId } = (
+      await request(app.getHttpServer())
+        .get(`/assets/${assetId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200)
+    ).body;
+    const otherAssetId = (
+      await request(app.getHttpServer())
+        .post('/assets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assetTypeId, locationId, tag: `MP-e2e-other-${tag}` })
+        .expect(201)
+    ).body.id;
+
+    const createPlan = (forAssetId: string, name: string) =>
+      request(app.getHttpServer())
+        .post('/maintenance-plans')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assetId: forAssetId, name, intervalDays: 30 })
+        .expect(201);
+
+    await createPlan(otherAssetId, `Filter-${tag}-other-1`);
+    await createPlan(otherAssetId, `Filter-${tag}-other-2`);
+    await createPlan(assetId, `Filter-${tag}-main`);
+
+    const otherRes = await request(app.getHttpServer())
+      .get('/maintenance-plans')
+      .query({ assetId: otherAssetId, limit: 100 })
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(otherRes.body.meta.total).toBe(2);
+    expect(
+      otherRes.body.data.map((p: { assetId: string }) => p.assetId),
+    ).toEqual([otherAssetId, otherAssetId]);
+
+    const mainRes = await request(app.getHttpServer())
+      .get('/maintenance-plans')
+      .query({ assetId, limit: 100 })
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    for (const plan of mainRes.body.data) {
+      expect(plan.assetId).toBe(assetId);
+    }
+    expect(mainRes.body.data.map((p: { name: string }) => p.name)).toContain(
+      `Filter-${tag}-main`,
+    );
+
+    const unknownRes = await request(app.getHttpServer())
+      .get('/maintenance-plans')
+      .query({ assetId: '00000000-0000-0000-0000-000000000000' })
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(unknownRes.body.data).toEqual([]);
+    expect(unknownRes.body.meta.total).toBe(0);
+
+    await request(app.getHttpServer())
+      .get('/maintenance-plans')
+      .query({ assetId: 'not-a-uuid' })
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(400);
+  });
 });

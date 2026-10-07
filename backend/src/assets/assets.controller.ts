@@ -24,6 +24,7 @@ import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { RoleName } from '../users/entities/role.entity';
 import { AssetsService } from './assets.service';
 import { AssetHistoryService } from '../asset-history/asset-history.service';
+import { AssetQueryDto } from './dto/asset-query.dto';
 import { AssetResponseDto } from './dto/asset-response.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
@@ -40,13 +41,13 @@ export class AssetsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'List assets (paginated)' })
+  @ApiOperation({ summary: 'List assets (paginated, optionally by status)' })
   @ApiOkResponse({
     description: 'Paginated list of assets',
     type: AssetResponseDto,
     isArray: true,
   })
-  async findAll(@Query() query: PaginationQueryDto) {
+  async findAll(@Query() query: AssetQueryDto) {
     const result = await this.assetsService.findAll(query);
     return {
       data: result.data.map((asset) => AssetResponseDto.fromEntity(asset)),

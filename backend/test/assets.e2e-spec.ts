@@ -240,4 +240,58 @@ describe('Assets (e2e)', () => {
       0,
     );
   });
+
+  it('filters the list by status, and rejects an unknown status with 400', async () => {
+    // Walk every page rather than trusting a single page or a count delta, so
+    // the assertions hold even if other assets already exist in the database.
+    const idsWithStatus = async (status: string): Promise<string[]> => {
+      const ids: string[] = [];
+      for (let page = 1; ; page++) {
+        const res = await request(app.getHttpServer())
+          .get('/assets')
+          .query({ status, page, limit: 100 })
+          .set('Authorization', `Bearer ${adminToken}`)
+          .expect(200);
+        for (const asset of res.body.data) {
+          expect(asset.status).toBe(status);
+          ids.push(asset.id);
+        }
+        if (page >= res.body.meta.totalPages) return ids;
+      }
+    };
+
+    const operationalId = (
+      await request(app.getHttpServer())
+        .post('/assets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assetTypeId, locationId, tag: newTag() })
+        .expect(201)
+    ).body.id;
+    const criticalId = (
+      await request(app.getHttpServer())
+        .post('/assets')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ assetTypeId, locationId, tag: newTag() })
+        .expect(201)
+    ).body.id;
+    await request(app.getHttpServer())
+      .patch(`/assets/${criticalId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'CRITICAL' })
+      .expect(200);
+
+    const criticalIds = await idsWithStatus('CRITICAL');
+    expect(criticalIds).toContain(criticalId);
+    expect(criticalIds).not.toContain(operationalId);
+
+    const operationalIds = await idsWithStatus('OPERATIONAL');
+    expect(operationalIds).toContain(operationalId);
+    expect(operationalIds).not.toContain(criticalId);
+
+    await request(app.getHttpServer())
+      .get('/assets')
+      .query({ status: 'NOT_A_STATUS' })
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(400);
+  });
 });

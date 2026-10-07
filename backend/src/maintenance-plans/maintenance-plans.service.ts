@@ -7,6 +7,7 @@ import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { CreateMaintenancePlanDto } from './dto/create-maintenance-plan.dto';
+import { MaintenancePlanQueryDto } from './dto/maintenance-plan-query.dto';
 import { UpdateMaintenancePlanDto } from './dto/update-maintenance-plan.dto';
 import { MaintenancePlan } from './entities/maintenance-plan.entity';
 import { daysFromNow } from '../common/utils/date.util';
@@ -23,9 +24,12 @@ export class MaintenancePlansService {
   ) {}
 
   async findAll(
-    query: PaginationQueryDto,
+    query: MaintenancePlanQueryDto,
   ): Promise<PaginatedResult<MaintenancePlan>> {
     const qb = this.planRepo.createQueryBuilder('plan');
+    if (query.assetId) {
+      qb.andWhere('plan.assetId = :assetId', { assetId: query.assetId });
+    }
     return paginate(qb, query, {
       defaultSortBy: 'plan.name',
       allowedSortFields: SORTABLE_FIELDS,

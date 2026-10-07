@@ -6,8 +6,8 @@ import { AuditService } from '../audit/audit.service';
 import { AssetHistoryService } from '../asset-history/asset-history.service';
 import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
-import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { Location } from '../locations/entities/location.entity';
+import { AssetQueryDto } from './dto/asset-query.dto';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { UpdateAssetStatusDto } from './dto/update-asset-status.dto';
@@ -25,8 +25,11 @@ export class AssetsService {
     private readonly assetHistoryService: AssetHistoryService,
   ) {}
 
-  async findAll(query: PaginationQueryDto): Promise<PaginatedResult<Asset>> {
+  async findAll(query: AssetQueryDto): Promise<PaginatedResult<Asset>> {
     const qb = this.assetRepo.createQueryBuilder('asset');
+    if (query.status) {
+      qb.andWhere('asset.status = :status', { status: query.status });
+    }
     return paginate(qb, query, {
       defaultSortBy: 'asset.tag',
       allowedSortFields: SORTABLE_FIELDS,

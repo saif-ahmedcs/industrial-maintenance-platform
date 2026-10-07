@@ -23,6 +23,7 @@ import type { RequestUser } from '../auth/interfaces/request-user.interface';
 import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { RoleName } from '../users/entities/role.entity';
 import { CreateMaintenancePlanDto } from './dto/create-maintenance-plan.dto';
+import { MaintenancePlanQueryDto } from './dto/maintenance-plan-query.dto';
 import { MaintenancePlanResponseDto } from './dto/maintenance-plan-response.dto';
 import { UpdateMaintenancePlanDto } from './dto/update-maintenance-plan.dto';
 import { MaintenancePlansService } from './maintenance-plans.service';
@@ -35,13 +36,15 @@ export class MaintenancePlansController {
   constructor(private readonly plansService: MaintenancePlansService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List maintenance plans (paginated)' })
+  @ApiOperation({
+    summary: 'List maintenance plans (paginated, optionally by asset)',
+  })
   @ApiOkResponse({
     description: 'Paginated list of maintenance plans',
     type: MaintenancePlanResponseDto,
     isArray: true,
   })
-  async findAll(@Query() query: PaginationQueryDto) {
+  async findAll(@Query() query: MaintenancePlanQueryDto) {
     const result = await this.plansService.findAll(query);
     return {
       data: result.data.map((plan) =>

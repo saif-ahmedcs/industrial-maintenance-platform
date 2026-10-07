@@ -1,7 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,6 +26,7 @@ import { ConditionMonitoringModule } from './condition-monitoring/condition-moni
 import { NotificationsModule } from './notifications/notifications.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
 
 @Module({
   imports: [
@@ -88,7 +89,7 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
   providers: [
     AppService,
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: UserThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
