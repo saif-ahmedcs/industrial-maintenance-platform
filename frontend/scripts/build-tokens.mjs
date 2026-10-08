@@ -32,7 +32,7 @@ function resolveRef(ref, root) {
 }
 
 function formatFontFamily(stack) {
-  return stack.map((name, i) => (i === 0 ? `"${name}"` : name)).join(', ');
+  return stack.map((name, i) => (i === 0 ? `'${name}'` : name)).join(', ');
 }
 
 function splitTopLevelArgs(argsSource) {
