@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 const API_PREFIXES = [
   "/auth",
@@ -17,7 +18,7 @@ const API_PREFIXES = [
 
 export default defineConfig({
   base: "/app/",
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
     proxy: Object.fromEntries(

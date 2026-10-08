@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "oxlint src/ && prettier --check \"src/**/*.{ts,tsx,css}\"",
+    "lint": "oxlint src/ && prettier --check \"src/**/*.{ts,tsx,css}\" && node scripts/check-no-hex.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
