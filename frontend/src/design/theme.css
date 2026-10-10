@@ -6,12 +6,14 @@
   --color-surface-deep: #011d1c;
   --color-surface-kelp: #003734;
   --color-surface-slate: #707777;
+  --color-surface-arrow-button: rgba(3, 81, 75, 0.5);
 
   /* Text: text-text-platinum ... */
   --color-text-platinum: #ffffff;
   --color-text-mist: #edfffe;
   --color-text-silver: #bbc7c6;
   --color-text-ash: #f2f2f2;
+  --color-text-ink: #222222;
 
   /* Accent */
   --color-accent-lavender: #fde9ff;
