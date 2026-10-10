@@ -89,12 +89,7 @@ describe('Table', () => {
 
   it('shows skeleton rows over real rows while loading', () => {
     const { container } = render(
-      <Table
-        columns={columns}
-        rows={rows}
-        loading
-        rowKey={(row) => row.id}
-      />,
+      <Table columns={columns} rows={rows} loading rowKey={(row) => row.id} />,
     );
     expect(within(container).queryByText('PUMP-01')).not.toBeInTheDocument();
   });

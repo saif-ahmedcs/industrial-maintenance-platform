@@ -5,7 +5,10 @@ import { EmptyState } from './EmptyState';
 describe('EmptyState', () => {
   it('renders the title as a level-2 heading', () => {
     const { container } = render(
-      <EmptyState title="Nothing is overdue" body="All plans are on schedule." />,
+      <EmptyState
+        title="Nothing is overdue"
+        body="All plans are on schedule."
+      />,
     );
     const heading = within(container).getByRole('heading', {
       level: 2,
@@ -42,14 +45,20 @@ describe('EmptyState', () => {
 
   it('renders no action wrapper when action is omitted', () => {
     const { container } = render(
-      <EmptyState title="No open work orders" body="Create one from an asset page." />,
+      <EmptyState
+        title="No open work orders"
+        body="Create one from an asset page."
+      />,
     );
     expect(container.querySelector('button')).toBeNull();
   });
 
   it('uses the recessed (sunken well) Panel treatment', () => {
     const { container } = render(
-      <EmptyState title="Nothing is overdue" body="All plans are on schedule." />,
+      <EmptyState
+        title="Nothing is overdue"
+        body="All plans are on schedule."
+      />,
     );
     const panel = container.firstElementChild;
     expect(panel?.className).toContain('bg-surface-deep');

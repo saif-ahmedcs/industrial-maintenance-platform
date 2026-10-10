@@ -30,8 +30,12 @@ describe('Pagination', () => {
         onPageChange={() => {}}
       />,
     );
-    expect(within(container).getByRole('button', { name: 'Previous' })).toBeDisabled();
-    expect(within(container).getByRole('button', { name: 'Next' })).toBeEnabled();
+    expect(
+      within(container).getByRole('button', { name: 'Previous' }),
+    ).toBeDisabled();
+    expect(
+      within(container).getByRole('button', { name: 'Next' }),
+    ).toBeEnabled();
   });
 
   it('disables Next on the last page', () => {
@@ -41,8 +45,12 @@ describe('Pagination', () => {
         onPageChange={() => {}}
       />,
     );
-    expect(within(container).getByRole('button', { name: 'Next' })).toBeDisabled();
-    expect(within(container).getByRole('button', { name: 'Previous' })).toBeEnabled();
+    expect(
+      within(container).getByRole('button', { name: 'Next' }),
+    ).toBeDisabled();
+    expect(
+      within(container).getByRole('button', { name: 'Previous' }),
+    ).toBeEnabled();
   });
 
   it('calls onPageChange with page - 1 when Previous is clicked', () => {
@@ -78,8 +86,12 @@ describe('Pagination', () => {
     );
     expect(within(container).getByText('No results')).toBeInTheDocument();
     expect(within(container).getByText('Page 1 of 1')).toBeInTheDocument();
-    expect(within(container).getByRole('button', { name: 'Previous' })).toBeDisabled();
-    expect(within(container).getByRole('button', { name: 'Next' })).toBeDisabled();
+    expect(
+      within(container).getByRole('button', { name: 'Previous' }),
+    ).toBeDisabled();
+    expect(
+      within(container).getByRole('button', { name: 'Next' }),
+    ).toBeDisabled();
   });
 
   it('is wrapped in a labeled navigation landmark', () => {
@@ -102,8 +114,8 @@ describe('Pagination', () => {
         className="custom-class"
       />,
     );
-    expect(
-      within(container).getByRole('navigation').className,
-    ).toContain('custom-class');
+    expect(within(container).getByRole('navigation').className).toContain(
+      'custom-class',
+    );
   });
 });

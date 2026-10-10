@@ -21,6 +21,14 @@ describe('IconButton', () => {
     expect(() => render(<IconButton label="Open PUMP-01" />)).not.toThrow();
   });
 
+  it('renders the close variant when icon="close" is given', () => {
+    const { container } = render(<IconButton label="Close" icon="close" />);
+    expect(
+      within(container).getByRole('button', { name: 'Close' }),
+    ).toBeInTheDocument();
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
   it('defaults to a native button of type="button"', () => {
     const { container } = render(<IconButton label="Open PUMP-01" />);
     expect(within(container).getByRole('button')).toHaveAttribute(

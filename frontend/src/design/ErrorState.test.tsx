@@ -12,7 +12,9 @@ describe('ErrorState', () => {
 
   it("renders an error object's message", () => {
     const { container } = render(
-      <ErrorState error={{ message: 'You do not have permission to do this.' }} />,
+      <ErrorState
+        error={{ message: 'You do not have permission to do this.' }}
+      />,
     );
     expect(
       within(container).getByText('You do not have permission to do this.'),
@@ -22,10 +24,15 @@ describe('ErrorState', () => {
   it('renders the request ID when present on an error object', () => {
     const { container } = render(
       <ErrorState
-        error={{ message: 'Something went wrong on our side.', requestId: 'req_123' }}
+        error={{
+          message: 'Something went wrong on our side.',
+          requestId: 'req_123',
+        }}
       />,
     );
-    expect(within(container).getByText('Request ID: req_123')).toBeInTheDocument();
+    expect(
+      within(container).getByText('Request ID: req_123'),
+    ).toBeInTheDocument();
   });
 
   it('renders no request ID line for a string error', () => {

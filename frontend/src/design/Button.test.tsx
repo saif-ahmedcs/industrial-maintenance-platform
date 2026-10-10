@@ -68,9 +68,7 @@ describe('Button', () => {
 
   it('forwards onClick and other native button props', () => {
     const onClick = vi.fn();
-    const { container } = render(
-      <Button onClick={onClick}>Save plan</Button>,
-    );
+    const { container } = render(<Button onClick={onClick}>Save plan</Button>);
     within(container).getByRole('button').click();
     expect(onClick).toHaveBeenCalledTimes(1);
   });

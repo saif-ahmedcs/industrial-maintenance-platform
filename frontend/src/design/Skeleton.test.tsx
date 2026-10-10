@@ -54,10 +54,7 @@ describe('Skeleton', () => {
 
   it('is hidden from assistive tech', () => {
     const { container } = render(<Skeleton />);
-    expect(container.firstElementChild).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    );
+    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('merges a custom className', () => {

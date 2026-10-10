@@ -1,8 +1,8 @@
 import type { ComponentPropsWithoutRef } from 'react';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { IconArrowUpRight, IconX } from '@tabler/icons-react';
 import { Icon, type TablerIconComponent } from './Icon';
 
-export type IconButtonIcon = 'open';
+export type IconButtonIcon = 'open' | 'close';
 
 interface IconButtonOwnProps {
   label: string;
@@ -15,6 +15,7 @@ export type IconButtonProps = IconButtonOwnProps &
 
 const ICON_MAP: Record<IconButtonIcon, TablerIconComponent> = {
   open: IconArrowUpRight,
+  close: IconX,
 };
 
 export function IconButton({

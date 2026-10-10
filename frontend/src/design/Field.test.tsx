@@ -67,9 +67,9 @@ describe('Field', () => {
         <input type="number" />
       </Field>,
     );
-    expect(
-      within(container).getByLabelText('Interval'),
-    ).not.toHaveAttribute('aria-invalid');
+    expect(within(container).getByLabelText('Interval')).not.toHaveAttribute(
+      'aria-invalid',
+    );
   });
 
   it('shows the error instead of the hint when both are given', () => {
@@ -120,7 +120,11 @@ describe('Field', () => {
   it('forwards other native input props untouched', () => {
     const { container } = render(
       <Field label="Email">
-        <input type="email" placeholder="you@example.com" autoComplete="email" />
+        <input
+          type="email"
+          placeholder="you@example.com"
+          autoComplete="email"
+        />
       </Field>,
     );
     const input = within(container).getByLabelText('Email');
@@ -134,8 +138,6 @@ describe('Field', () => {
         <input type="email" />
       </Field>,
     );
-    expect(container.firstElementChild?.className).toContain(
-      'custom-wrapper',
-    );
+    expect(container.firstElementChild?.className).toContain('custom-wrapper');
   });
 });
