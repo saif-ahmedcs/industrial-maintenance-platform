@@ -69,6 +69,10 @@ function performRefresh(): Promise<void> {
   return refreshPromise;
 }
 
+export function refreshSession(): Promise<void> {
+  return performRefresh();
+}
+
 async function refreshAccessToken(): Promise<void> {
   const response = await fetch(buildUrl('/auth/refresh'), {
     method: 'POST',
