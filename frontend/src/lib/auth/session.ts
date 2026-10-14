@@ -18,11 +18,6 @@ export interface SessionState {
   user: AuthUser | null;
 }
 
-// Refresh-token storage: Option A (httpOnly cookie), per docs/decisions.md #1.
-// The cookie is set by the backend on login/refresh and is never read or
-// written from JavaScript. The access token lives only in this module
-// variable (never in localStorage) and does not survive a reload, which is
-// why startup goes through restoreSession() below.
 let state: SessionState = { status: 'restoring', user: null };
 const listeners = new Set<() => void>();
 
