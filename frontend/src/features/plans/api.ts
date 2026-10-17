@@ -16,6 +16,7 @@ export type MaintenancePlan = z.infer<typeof maintenancePlanSchema>;
 export interface ListMaintenancePlansParams extends QueryParams {
   page?: number;
   limit?: number;
+  assetId?: string;
   sortBy?: string;
   sortDir?: 'ASC' | 'DESC' | 'asc' | 'desc';
 }
@@ -23,6 +24,16 @@ export interface ListMaintenancePlansParams extends QueryParams {
 /** GET /maintenance-plans/due */
 export async function listDuePlans(params: ListMaintenancePlansParams = {}) {
   const data = await request<unknown>('/maintenance-plans/due', {
+    query: params,
+  });
+  return paginated(maintenancePlanSchema).parse(data);
+}
+
+/** GET /maintenance-plans */
+export async function listMaintenancePlans(
+  params: ListMaintenancePlansParams = {},
+) {
+  const data = await request<unknown>('/maintenance-plans', {
     query: params,
   });
   return paginated(maintenancePlanSchema).parse(data);

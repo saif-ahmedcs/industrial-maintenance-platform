@@ -54,6 +54,35 @@ export async function getAsset(id: string): Promise<Asset> {
   return assetSchema.parse(data);
 }
 
+export const assetStateHistoryEntrySchema = z.object({
+  id: z.string(),
+  assetId: z.string(),
+  previousStatus: assetStatusSchema,
+  newStatus: assetStatusSchema,
+  changedAt: z.string(),
+  changedByUserId: z.string().nullable(),
+  source: z.string(),
+});
+export type AssetStateHistoryEntry = z.infer<
+  typeof assetStateHistoryEntrySchema
+>;
+
+export interface ListAssetHistoryParams extends QueryParams {
+  page?: number;
+  limit?: number;
+}
+
+/** GET /assets/:id/history */
+export async function getAssetHistory(
+  id: string,
+  params: ListAssetHistoryParams = {},
+) {
+  const data = await request<unknown>(`/assets/${id}/history`, {
+    query: params,
+  });
+  return paginated(assetStateHistoryEntrySchema).parse(data);
+}
+
 export interface CreateAssetInput {
   assetTypeId: string;
   locationId: string;

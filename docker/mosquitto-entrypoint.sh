@@ -6,6 +6,7 @@ set -eu
 : "${MQTT_BACKEND_PASSWORD:?MQTT_BACKEND_PASSWORD must be set}"
 
 PASSWD_FILE=/mosquitto/config/passwd
+rm -f "$PASSWD_FILE"
 
 # Build the password file at container start so no secrets live in the repo.
 mosquitto_passwd -b -c "$PASSWD_FILE" simulator "$MQTT_SIMULATOR_PASSWORD"
