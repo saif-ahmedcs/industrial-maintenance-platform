@@ -83,6 +83,18 @@ export async function getAssetHistory(
   return paginated(assetStateHistoryEntrySchema).parse(data);
 }
 
+/** PATCH /assets/:id/status */
+export async function updateAssetStatus(
+  id: string,
+  status: AssetStatus,
+): Promise<Asset> {
+  const data = await request<unknown>(`/assets/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+  });
+  return assetSchema.parse(data);
+}
+
 export interface CreateAssetInput {
   assetTypeId: string;
   locationId: string;
