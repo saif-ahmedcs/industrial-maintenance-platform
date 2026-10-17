@@ -30,6 +30,19 @@ export class AssetsService {
     if (query.status) {
       qb.andWhere('asset.status = :status', { status: query.status });
     }
+    if (query.search) {
+      qb.andWhere('asset.tag ILIKE :search', { search: `%${query.search}%` });
+    }
+    if (query.locationId) {
+      qb.andWhere('asset.locationId = :locationId', {
+        locationId: query.locationId,
+      });
+    }
+    if (query.assetTypeId) {
+      qb.andWhere('asset.assetTypeId = :assetTypeId', {
+        assetTypeId: query.assetTypeId,
+      });
+    }
     return paginate(qb, query, {
       defaultSortBy: 'asset.tag',
       allowedSortFields: SORTABLE_FIELDS,

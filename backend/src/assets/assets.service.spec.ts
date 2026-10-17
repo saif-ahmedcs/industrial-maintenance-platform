@@ -98,6 +98,48 @@ describe('AssetsService', () => {
       expect(qb.skip).toHaveBeenCalledWith(10);
       expect(qb.take).toHaveBeenCalledWith(10);
     });
+
+    it('adds a parameterised, wildcard-wrapped ILIKE condition when search is given', async () => {
+      await service.findAll(query({ search: 'PUMP' }));
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(1);
+      expect(qb.andWhere).toHaveBeenCalledWith('asset.tag ILIKE :search', {
+        search: '%PUMP%',
+      });
+    });
+
+    it('adds a parameterised locationId condition when locationId is given', async () => {
+      await service.findAll(query({ locationId: 'loc-1' }));
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'asset.locationId = :locationId',
+        {
+          locationId: 'loc-1',
+        },
+      );
+    });
+
+    it('adds a parameterised assetTypeId condition when assetTypeId is given', async () => {
+      await service.findAll(query({ assetTypeId: 'type-1' }));
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        'asset.assetTypeId = :assetTypeId',
+        { assetTypeId: 'type-1' },
+      );
+    });
+
+    it('combines status, search, location, and asset type into one query', async () => {
+      await service.findAll(
+        query({
+          status: AssetStatus.CRITICAL,
+          search: 'PUMP',
+          locationId: 'loc-1',
+          assetTypeId: 'type-1',
+        }),
+      );
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(4);
+    });
   });
 
   describe('create', () => {

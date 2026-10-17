@@ -35,6 +35,9 @@ export interface ListAssetsParams extends QueryParams {
   page?: number;
   limit?: number;
   status?: AssetStatus;
+  search?: string;
+  locationId?: string;
+  assetTypeId?: string;
   sortBy?: string;
   sortDir?: 'ASC' | 'DESC' | 'asc' | 'desc';
 }
@@ -48,5 +51,24 @@ export async function listAssets(params: ListAssetsParams = {}) {
 /** GET /assets/:id */
 export async function getAsset(id: string): Promise<Asset> {
   const data = await request<unknown>(`/assets/${id}`);
+  return assetSchema.parse(data);
+}
+
+export interface CreateAssetInput {
+  assetTypeId: string;
+  locationId: string;
+  tag: string;
+  manufacturer?: string;
+  model?: string;
+  criticality?: AssetCriticality;
+  installedAt?: string;
+}
+
+/** POST /assets */
+export async function createAsset(input: CreateAssetInput): Promise<Asset> {
+  const data = await request<unknown>('/assets', {
+    method: 'POST',
+    body: input,
+  });
   return assetSchema.parse(data);
 }
