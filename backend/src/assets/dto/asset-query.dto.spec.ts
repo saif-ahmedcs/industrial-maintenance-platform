@@ -54,7 +54,7 @@ describe('AssetQueryDto', () => {
   });
 
   it('accepts a valid locationId and assetTypeId', async () => {
-    const uuid = '11111111-1111-1111-1111-111111111111';
+    const uuid = '11111111-1111-1111-a111-111111111111';
     expect(await invalidFields({ locationId: uuid })).toEqual([]);
     expect(await invalidFields({ assetTypeId: uuid })).toEqual([]);
   });
@@ -74,7 +74,7 @@ describe('AssetQueryDto', () => {
   );
 
   it('accepts status, search, location, and asset type together', async () => {
-    const uuid = '11111111-1111-1111-1111-111111111111';
+    const uuid = '11111111-1111-1111-a111-111111111111';
     expect(
       await invalidFields({
         status: 'CRITICAL',
