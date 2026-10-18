@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDateTime, formatRelativeTime } from './date';
+import { formatDateTime, formatRelativeTime, formatTime } from './date';
 
 describe('formatDateTime', () => {
   it('rolls over to the correct local date near UTC midnight in a non-UTC timezone', () => {
@@ -16,6 +16,16 @@ describe('formatDateTime', () => {
     expect(formatDateTime('2026-01-05T09:03:00Z', 'UTC')).toBe(
       '05 Jan 2026 09:03',
     );
+  });
+});
+
+describe('formatTime', () => {
+  it('formats as 24-hour HH:mm in the given timezone', () => {
+    expect(formatTime('2026-10-08T14:05:00Z', 'UTC')).toBe('14:05');
+  });
+
+  it('defaults to the plant timezone when none is passed', () => {
+    expect(formatTime('2026-10-08T14:05:00Z')).toBe('14:05');
   });
 });
 

@@ -9,7 +9,6 @@ import { Field } from '../../design/Field';
 import { Panel } from '../../design/Panel';
 import { Select, type SelectOption } from '../../design/Select';
 import { Skeleton } from '../../design/Skeleton';
-import { Stat } from '../../design/Stat';
 import { StatusTag } from '../../design/StatusTag';
 import { Surface } from '../../design/Surface';
 import { Table, type TableColumn } from '../../design/Table';
@@ -21,6 +20,7 @@ import { listAssetTypes } from '../asset-types/api';
 import { listLocations } from '../locations/api';
 import { listNotifications } from '../alerts/api';
 import { listMaintenancePlans, type MaintenancePlan } from '../plans/api';
+import { TelemetryPanel } from '../telemetry/TelemetryPanel';
 import { listWorkOrders, type WorkOrder } from '../work-orders/api';
 import {
   getAsset,
@@ -375,19 +375,7 @@ export default function AssetDetailPage() {
         </Panel>
       )}
 
-      <Surface tone="kelp" className="flex flex-col gap-6">
-        <Eyebrow tone="silver" size="label">
-          Live readings
-        </Eyebrow>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <Stat label="Temperature" value="—" />
-          <Stat label="Vibration" value="—" />
-          <Stat label="Pressure" value="—" />
-        </div>
-        <p className="font-display text-body font-normal text-text-silver">
-          Live telemetry and the trend chart for this asset arrive in Phase 11.
-        </p>
-      </Surface>
+      <TelemetryPanel assetId={asset.id} />
 
       <div className="flex flex-col gap-3">
         <Eyebrow tone="silver" size="label">

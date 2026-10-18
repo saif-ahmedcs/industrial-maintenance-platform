@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 
 export type StatTone = 'mist' | 'silver';
+export type StatValueTone = 'lavender' | 'critical';
 
 export interface StatProps {
   value: ReactNode;
   label: string;
   loading?: boolean;
   tone?: StatTone;
+  valueTone?: StatValueTone;
   className?: string;
 }
 
@@ -15,11 +17,17 @@ const LABEL_TONE_CLASS: Record<StatTone, string> = {
   silver: 'text-text-silver',
 };
 
+const VALUE_TONE_CLASS: Record<StatValueTone, string> = {
+  lavender: 'text-accent-lavender',
+  critical: 'text-alarm-critical',
+};
+
 export function Stat({
   value,
   label,
   loading = false,
   tone = 'mist',
+  valueTone = 'lavender',
   className,
 }: StatProps) {
   const classes = ['flex', 'flex-col', 'gap-1', className]
@@ -37,7 +45,14 @@ export function Stat({
           <span className="sr-only">Loading {label}</span>
         </>
       ) : (
-        <span className="font-display font-medium text-heading text-accent-lavender">
+        <span
+          className={[
+            'font-display',
+            'font-medium',
+            'text-heading',
+            VALUE_TONE_CLASS[valueTone],
+          ].join(' ')}
+        >
           {value}
         </span>
       )}

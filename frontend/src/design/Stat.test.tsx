@@ -36,6 +36,15 @@ describe('Stat', () => {
     );
   });
 
+  it('applies the critical alarm color to the value when valueTone is critical', () => {
+    const { container } = render(
+      <Stat value="82.0°C" label="Temperature" valueTone="critical" />,
+    );
+    expect(within(container).getByText('82.0°C').className).toContain(
+      'text-alarm-critical',
+    );
+  });
+
   it('defaults the label tone to mist', () => {
     const { container } = render(<Stat value={3} label="Readings last hour" />);
     expect(

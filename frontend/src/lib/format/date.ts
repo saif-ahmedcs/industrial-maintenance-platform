@@ -20,6 +20,18 @@ export function formatDateTime(
   return `${part('day')} ${part('month')} ${part('year')} ${part('hour')}:${part('minute')}`;
 }
 
+export function formatTime(
+  iso: string,
+  timeZone: string = PLANT_TIMEZONE,
+): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso));
+}
+
 const RELATIVE_UNITS: { unit: Intl.RelativeTimeFormatUnit; seconds: number }[] =
   [
     { unit: 'year', seconds: 31536000 },
