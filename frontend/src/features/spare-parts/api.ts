@@ -27,3 +27,9 @@ export async function listSpareParts(params: ListSparePartsParams = {}) {
   const data = await request<unknown>('/spare-parts', { query: params });
   return paginated(sparePartSchema).parse(data);
 }
+
+/** GET /spare-parts/:id */
+export async function getSparePart(id: string): Promise<SparePart> {
+  const data = await request<unknown>(`/spare-parts/${id}`);
+  return sparePartSchema.parse(data);
+}

@@ -28,6 +28,7 @@ const workOrderPartSchema = z.object({
   quantityUsed: z.number(),
   unitCostAtCompletion: z.number(),
 });
+export type WorkOrderPart = z.infer<typeof workOrderPartSchema>;
 
 export const workOrderSchema = z.object({
   id: z.string(),
@@ -63,4 +64,64 @@ export interface ListWorkOrdersParams extends QueryParams {
 export async function listWorkOrders(params: ListWorkOrdersParams = {}) {
   const data = await request<unknown>('/work-orders', { query: params });
   return paginated(workOrderSchema).parse(data);
+}
+
+/** GET /work-orders/:id */
+export async function getWorkOrder(id: string): Promise<WorkOrder> {
+  const data = await request<unknown>(`/work-orders/${id}`);
+  return workOrderSchema.parse(data);
+}
+
+export interface CreateWorkOrderInput {
+  assetId: string;
+  description: string;
+  priority?: WorkOrderPriority;
+}
+
+/** POST /work-orders */
+export async function createWorkOrder(
+  input: CreateWorkOrderInput,
+): Promise<WorkOrder> {
+  const data = await request<unknown>('/work-orders', {
+    method: 'POST',
+    body: input,
+  });
+  return workOrderSchema.parse(data);
+}
+
+/** PATCH /work-orders/:id/assign (omit assignedToUserId to assign to self) */
+export async function assignWorkOrder(
+  id: string,
+  assignedToUserId?: string,
+): Promise<WorkOrder> {
+  const data = await request<unknown>(`/work-orders/${id}/assign`, {
+    method: 'PATCH',
+    body: assignedToUserId ? { assignedToUserId } : {},
+  });
+  return workOrderSchema.parse(data);
+}
+
+/** PATCH /work-orders/:id/start */
+export async function startWorkOrder(id: string): Promise<WorkOrder> {
+  const data = await request<unknown>(`/work-orders/${id}/start`, {
+    method: 'PATCH',
+  });
+  return workOrderSchema.parse(data);
+}
+
+/** PATCH /work-orders/:id/complete */
+export async function completeWorkOrder(id: string): Promise<WorkOrder> {
+  const data = await request<unknown>(`/work-orders/${id}/complete`, {
+    method: 'PATCH',
+    body: {},
+  });
+  return workOrderSchema.parse(data);
+}
+
+/** PATCH /work-orders/:id/cancel */
+export async function cancelWorkOrder(id: string): Promise<WorkOrder> {
+  const data = await request<unknown>(`/work-orders/${id}/cancel`, {
+    method: 'PATCH',
+  });
+  return workOrderSchema.parse(data);
 }
