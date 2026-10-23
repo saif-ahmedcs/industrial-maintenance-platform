@@ -38,3 +38,41 @@ export async function listMaintenancePlans(
   });
   return paginated(maintenancePlanSchema).parse(data);
 }
+
+export interface CreateMaintenancePlanInput {
+  assetId: string;
+  name: string;
+  intervalDays: number;
+  nextDueAt?: string;
+  active?: boolean;
+}
+
+/** POST /maintenance-plans (ADMIN, SUPERVISOR) */
+export async function createMaintenancePlan(
+  input: CreateMaintenancePlanInput,
+): Promise<MaintenancePlan> {
+  const data = await request<unknown>('/maintenance-plans', {
+    method: 'POST',
+    body: input,
+  });
+  return maintenancePlanSchema.parse(data);
+}
+
+export interface UpdateMaintenancePlanInput {
+  name?: string;
+  intervalDays?: number;
+  nextDueAt?: string;
+  active?: boolean;
+}
+
+/** PATCH /maintenance-plans/:id (ADMIN, SUPERVISOR) */
+export async function updateMaintenancePlan(
+  id: string,
+  input: UpdateMaintenancePlanInput,
+): Promise<MaintenancePlan> {
+  const data = await request<unknown>(`/maintenance-plans/${id}`, {
+    method: 'PATCH',
+    body: input,
+  });
+  return maintenancePlanSchema.parse(data);
+}
