@@ -15,6 +15,7 @@ export type StatusTagValue =
   | 'CRITICAL_ASSET'
   | 'OVERDUE_MAINTENANCE'
   | 'LOW_STOCK'
+  | 'OUT'
   | 'UNREAD'
   | 'ACKNOWLEDGED'
   | 'RESOLVED'
@@ -56,6 +57,8 @@ const STATUS_STYLE: Record<StatusTagValue, { text: string; dot: string }> = {
   // CRITICAL tier — Alarm Critical
   CRITICAL: { text: 'text-alarm-critical', dot: 'bg-alarm-critical' },
   CRITICAL_ASSET: { text: 'text-alarm-critical', dot: 'bg-alarm-critical' },
+  // OUT (zero stock) — more severe than LOW_STOCK, same tier as CRITICAL
+  OUT: { text: 'text-alarm-critical', dot: 'bg-alarm-critical' },
 
   // WARNING tier — Alarm Warning
   OVERDUE_MAINTENANCE: { text: 'text-alarm-warning', dot: 'bg-alarm-warning' },
