@@ -25,13 +25,11 @@ const createPlanFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'Interval is required')
+    .refine((value) => /^\d+$/.test(value), 'must be an integer number')
+    .refine((value) => Number(value) >= 1, 'must not be less than 1')
     .refine(
-      (value) => /^\d+$/.test(value),
-      'Interval must be a positive integer',
-    )
-    .refine(
-      (value) => Number(value) >= 1 && Number(value) <= 3650,
-      'Interval must be between 1 and 3650 days',
+      (value) => Number(value) <= 3650,
+      'must be less than or equal to 3650',
     ),
 });
 
@@ -104,8 +102,6 @@ export function CreatePlanDialog({
       }
       setFieldErrors(nextErrors);
       setFormError(null);
-      // Select doesn't support ref-based focus; only steer focus for the
-      // plain text input, and let the inline error carry the rest.
       if (nextErrors.name) nameRef.current?.focus();
       return;
     }
