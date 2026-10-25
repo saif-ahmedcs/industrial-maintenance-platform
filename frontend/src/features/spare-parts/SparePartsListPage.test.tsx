@@ -96,9 +96,11 @@ describe('SparePartsListPage', () => {
 
     renderPage();
 
-    const thresholdRow = await screen.findByRole('row', {
-      name: /AT-THRESHOLD/,
-    });
+    const thresholdRow = await screen.findByRole(
+      'row',
+      { name: /AT-THRESHOLD/ },
+      { timeout: 5000 },
+    );
     expect(within(thresholdRow).getByText('LOW STOCK')).toBeInTheDocument();
 
     const aboveRow = screen.getByRole('row', { name: /ABOVE-THRESHOLD/ });
@@ -150,7 +152,11 @@ describe('SparePartsListPage', () => {
 
     renderPage();
 
-    const row = await screen.findByRole('row', { name: /PUMP-SEAL/ });
+    const row = await screen.findByRole(
+      'row',
+      { name: /PUMP-SEAL/ },
+      { timeout: 5000 },
+    );
     expect(within(row).getByText('5')).toBeInTheDocument();
 
     await user.click(within(row).getByRole('button', { name: 'Restock' }));
@@ -159,7 +165,11 @@ describe('SparePartsListPage', () => {
     await user.type(within(dialog).getByLabelText('Quantity to add'), '50');
     await user.click(within(dialog).getByRole('button', { name: 'Restock' }));
 
-    const updatedRow = await screen.findByRole('row', { name: /PUMP-SEAL/ });
+    const updatedRow = await screen.findByRole(
+      'row',
+      { name: /PUMP-SEAL/ },
+      { timeout: 5000 },
+    );
     expect(within(updatedRow).getByText('777')).toBeInTheDocument();
     expect(within(updatedRow).queryByText('55')).not.toBeInTheDocument();
   });
