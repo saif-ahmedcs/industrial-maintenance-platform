@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../design/Button';
 import { IconButton } from '../design/IconButton';
 import { NavLink } from '../design/NavLink';
 import { StatusTag } from '../design/StatusTag';
+import { listNotifications } from '../features/alerts/api';
 import { can, type Role } from '../lib/auth/roles';
 import { signOut, useSession } from '../lib/auth/session';
+import { formatNumber } from '../lib/format';
+
+const POLL_INTERVAL_MS = 30_000;
 
 interface NavItem {
   label: string;
@@ -47,6 +52,14 @@ export function AppShell() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [mobileOpen]);
 
+  const unreadAlertsQuery = useQuery({
+    queryKey: ['notifications', 'list', { status: 'UNREAD', limit: 5 }],
+    queryFn: () => listNotifications({ status: 'UNREAD', limit: 5 }),
+    refetchInterval: POLL_INTERVAL_MS,
+    enabled: Boolean(user),
+  });
+  const unreadCount = unreadAlertsQuery.data?.meta.total ?? 0;
+
   if (!user) return null;
 
   const visibleItems = NAV_ITEMS.filter(
@@ -75,8 +88,14 @@ export function AppShell() {
                 key={item.to}
                 to={item.to}
                 active={isActive(location.pathname, item.to)}
+                className="inline-flex items-center gap-1.5"
               >
                 {item.label}
+                {item.to === '/alerts' && unreadCount > 0 && (
+                  <span className="rounded-small border border-surface-slate bg-surface-abyss px-1.5 py-0.5 font-display text-caption font-normal text-accent-lavender">
+                    {formatNumber(unreadCount)}
+                  </span>
+                )}
               </NavLink>
             ))}
           </nav>
@@ -116,9 +135,14 @@ export function AppShell() {
                 key={item.to}
                 to={item.to}
                 active={isActive(location.pathname, item.to)}
-                className="py-2"
+                className="inline-flex items-center gap-1.5 py-2"
               >
                 {item.label}
+                {item.to === '/alerts' && unreadCount > 0 && (
+                  <span className="rounded-small border border-surface-slate bg-surface-abyss px-1.5 py-0.5 font-display text-caption font-normal text-accent-lavender">
+                    {formatNumber(unreadCount)}
+                  </span>
+                )}
               </NavLink>
             ))}
 
