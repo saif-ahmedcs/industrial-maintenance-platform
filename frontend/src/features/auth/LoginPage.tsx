@@ -87,7 +87,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center overflow-hidden px-6 py-16 sm:px-9">
+    <div className="relative isolate flex min-h-screen items-center overflow-hidden px-6 py-16 sm:px-9">
       <Sphere
         size={480}
         className="absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2"
