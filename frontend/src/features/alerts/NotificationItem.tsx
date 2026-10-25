@@ -1,12 +1,18 @@
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../design/Button';
 import { Panel } from '../../design/Panel';
 import { StatusTag } from '../../design/StatusTag';
 import { Surface } from '../../design/Surface';
+import { ApiError, toUserMessage } from '../../lib/api/errors';
 import { can } from '../../lib/auth/roles';
 import { useSession } from '../../lib/auth/session';
 import { formatDateTime } from '../../lib/format';
-import { acknowledgeNotification, type Notification } from './api';
+import {
+  acknowledgeNotification,
+  resolveNotification,
+  type Notification,
+} from './api';
 
 export interface NotificationItemProps {
   notification: Notification;
@@ -17,16 +23,40 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const queryClient = useQueryClient();
   const roles = user?.roles ?? [];
   const isUnread = notification.status === 'UNREAD';
+  const isResolved = notification.status === 'RESOLVED';
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  function handleActionError(error: unknown) {
+    setActionError(
+      error instanceof ApiError
+        ? toUserMessage(error).message
+        : 'Could not update this alert. Try again.',
+    );
+    void queryClient.invalidateQueries({
+      queryKey: ['notifications', 'list'],
+    });
+  }
 
   const acknowledgeMutation = useMutation({
     mutationFn: () => acknowledgeNotification(notification.id),
     onSuccess: () => {
-      // The overview only ever queries status=UNREAD, so a successful
-      // acknowledge simply drops this item out of the refetched list.
+      setActionError(null);
       void queryClient.invalidateQueries({
         queryKey: ['notifications', 'list'],
       });
     },
+    onError: handleActionError,
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: () => resolveNotification(notification.id),
+    onSuccess: () => {
+      setActionError(null);
+      void queryClient.invalidateQueries({
+        queryKey: ['notifications', 'list'],
+      });
+    },
+    onError: handleActionError,
   });
 
   return (
@@ -36,8 +66,10 @@ export function NotificationItem({ notification }: NotificationItemProps) {
           {isUnread ? (
             <StatusTag status={notification.type} />
           ) : (
-            // "Acknowledged items fall back to Silver Mist text with no status dot."
-            <StatusTag status="ACKNOWLEDGED" showDot={false} />
+            <StatusTag
+              status={notification.status}
+              showDot={notification.status !== 'ACKNOWLEDGED'}
+            />
           )}
           <p
             className={
@@ -53,16 +85,36 @@ export function NotificationItem({ notification }: NotificationItemProps) {
           </span>
         </div>
 
-        {isUnread && can.acknowledgeAlert(roles) && (
-          <Button
-            variant="ghost"
-            onClick={() => acknowledgeMutation.mutate()}
-            loading={acknowledgeMutation.isPending}
-          >
-            Acknowledge
-          </Button>
+        {!isResolved && (
+          <div className="flex items-center gap-3">
+            {isUnread && can.acknowledgeAlert(roles) && (
+              <Button
+                variant="ghost"
+                onClick={() => acknowledgeMutation.mutate()}
+                loading={acknowledgeMutation.isPending}
+              >
+                Acknowledge
+              </Button>
+            )}
+
+            {can.resolveAlert(roles) && (
+              <Button
+                variant="ghost"
+                onClick={() => resolveMutation.mutate()}
+                loading={resolveMutation.isPending}
+              >
+                Resolve
+              </Button>
+            )}
+          </div>
         )}
       </div>
+
+      {actionError && (
+        <p role="alert" className="font-ui text-ui text-accent-lavender">
+          {actionError}
+        </p>
+      )}
 
       {notification.aiNote && (
         <Panel padding="dense" className="flex flex-col gap-1">

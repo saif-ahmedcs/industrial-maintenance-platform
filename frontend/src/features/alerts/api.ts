@@ -55,3 +55,11 @@ export async function acknowledgeNotification(
   });
   return notificationSchema.parse(data);
 }
+
+/** PATCH /notifications/:id/resolve */
+export async function resolveNotification(id: string): Promise<Notification> {
+  const data = await request<unknown>(`/notifications/${id}/resolve`, {
+    method: 'PATCH',
+  });
+  return notificationSchema.parse(data);
+}
