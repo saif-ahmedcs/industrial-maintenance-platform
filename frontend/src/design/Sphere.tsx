@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   EDGE_RADIAL_THRESHOLD,
   MAX_DEVICE_PIXEL_RATIO,
@@ -16,6 +16,16 @@ export interface SphereProps {
   className?: string;
 }
 
+function getPrefersReducedMotion(): boolean {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function'
+  ) {
+    return false;
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 export function Sphere({
   size = 240,
   animated = true,
@@ -26,7 +36,55 @@ export function Sphere({
   const angleRef = useRef(0);
   const frameRef = useRef<number | null>(null);
 
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    getPrefersReducedMotion,
+  );
+  const [tabVisible, setTabVisible] = useState(
+    () =>
+      typeof document === 'undefined' || document.visibilityState !== 'hidden',
+  );
+  const [inViewport, setInViewport] = useState(true);
+
   const classes = ['pointer-events-none', className].filter(Boolean).join(' ');
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.matchMedia !== 'function'
+    ) {
+      return;
+    }
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleChange = () => setPrefersReducedMotion(mql.matches);
+    handleChange();
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const handleVisibility = () =>
+      setTabVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setInViewport(entry.isIntersecting),
+      { threshold: 0 },
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
+
+  const shouldAnimate =
+    animated && !prefersReducedMotion && tabVisible && inViewport;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -79,7 +137,7 @@ export function Sphere({
       frameRef.current = requestAnimationFrame(tick);
     }
 
-    if (animated) {
+    if (shouldAnimate) {
       frameRef.current = requestAnimationFrame(tick);
     } else {
       drawFrame();
@@ -91,7 +149,7 @@ export function Sphere({
         frameRef.current = null;
       }
     };
-  }, [size, animated]);
+  }, [size, shouldAnimate]);
 
   return (
     <canvas

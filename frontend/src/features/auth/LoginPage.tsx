@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { Button } from '../../design/Button';
 import { Eyebrow } from '../../design/Eyebrow';
 import { Field } from '../../design/Field';
-import { GeometricMolecule } from '../../design/GeometricMolecule';
 import { Heading } from '../../design/Heading';
 import { Sphere } from '../../design/Sphere';
 import { ApiError, toUserMessage } from '../../lib/api/errors';
@@ -88,11 +87,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative isolate flex min-h-screen items-center overflow-hidden px-6 py-16 sm:px-9">
-      <Sphere
-        size={480}
-        className="absolute left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2"
-      />
-
       <div className="relative mx-auto flex w-full max-w-page items-center justify-between gap-16">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 min-[900px]:mx-0">
           <Eyebrow tone="mist" size="eyebrow">
@@ -144,7 +138,15 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <GeometricMolecule className="hidden w-64 shrink-0 min-[900px]:block" />
+        <div
+          className="relative hidden w-80 shrink-0 min-[900px]:block lg:mr-12 xl:mr-24"
+          aria-hidden="true"
+        >
+          <Sphere
+            size={440}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+          />
+        </div>
       </div>
     </div>
   );
