@@ -1,4 +1,4 @@
-import { render, within } from '@testing-library/react';
+import { fireEvent, render, within } from '@testing-library/react';
 import {
   afterEach,
   beforeEach,
@@ -39,14 +39,12 @@ describe('Sphere', () => {
     rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockReturnValue(1) as unknown as Mock;
-    cancelRafSpy = vi.spyOn(
-      window,
-      'cancelAnimationFrame',
-    ) as unknown as Mock;
+    cancelRafSpy = vi.spyOn(window, 'cancelAnimationFrame') as unknown as Mock;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders a canvas at the default 240px size', () => {
@@ -94,5 +92,37 @@ describe('Sphere', () => {
     const { unmount } = render(<Sphere />);
     unmount();
     expect(cancelRafSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('skips the rotation loop and draws a still frame when the OS prefers reduced motion', () => {
+    const ctx = installCanvasContextMock();
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: true,
+        media: '(prefers-reduced-motion: reduce)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    );
+
+    render(<Sphere />);
+
+    expect(rafSpy).not.toHaveBeenCalled();
+    expect(ctx.fill).toHaveBeenCalled();
+  });
+
+  it('pauses the rotation loop when the tab is hidden, and resumes it when visible again', () => {
+    render(<Sphere />);
+    expect(rafSpy).toHaveBeenCalledTimes(1);
+
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    fireEvent(document, new Event('visibilitychange'));
+    expect(cancelRafSpy).toHaveBeenCalledWith(1);
+
+    rafSpy.mockClear();
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    fireEvent(document, new Event('visibilitychange'));
+    expect(rafSpy).toHaveBeenCalled();
   });
 });
