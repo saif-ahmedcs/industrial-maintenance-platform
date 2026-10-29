@@ -139,7 +139,7 @@ export default function SparePartsListPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: 'Actions',
       align: 'right',
       render: (row) => (
         <div className="flex flex-wrap items-center justify-end gap-2">

@@ -1,4 +1,5 @@
 import { fireEvent, render, within } from '@testing-library/react';
+import { axe } from 'jest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { Table, type TableColumn } from './Table';
 
@@ -154,5 +155,29 @@ describe('Table', () => {
       />,
     );
     expect(container.querySelector('.custom-class')).toBeInTheDocument();
+  });
+
+  // Step 17.1 — axe integration proof. This is not route coverage; it only
+  // proves the jest-axe wiring (matcher + violation detection) actually
+  // works, using the table markup already exercised above.
+  it('has no axe violations on the rendered table markup (17.1)', async () => {
+    const { container } = render(
+      <Table columns={columns} rows={rows} rowKey={(row) => row.id} />,
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('axe detects a deliberately unlabeled form control (17.1, sanity check)', async () => {
+    // Test-only fixture, not part of the Table component: proves the axe
+    // wiring actually flags a real violation rather than always passing.
+    const { container } = render(
+      <div>
+        <input type="text" />
+      </div>,
+    );
+    const results = await axe(container);
+    expect(
+      results.violations.some((violation) => violation.id === 'label'),
+    ).toBe(true);
   });
 });

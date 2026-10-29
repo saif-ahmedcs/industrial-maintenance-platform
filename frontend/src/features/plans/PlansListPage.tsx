@@ -14,7 +14,11 @@ import { ApiError, toUserMessage } from '../../lib/api/errors';
 import { can } from '../../lib/auth/roles';
 import { useSession } from '../../lib/auth/session';
 import { formatDateTime } from '../../lib/format';
-import { listDuePlans, listMaintenancePlans, type MaintenancePlan } from './api';
+import {
+  listDuePlans,
+  listMaintenancePlans,
+  type MaintenancePlan,
+} from './api';
 import { CreatePlanDialog } from './CreatePlanDialog';
 import { EditPlanDialog } from './EditPlanDialog';
 
@@ -138,7 +142,7 @@ export default function PlansListPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: 'Actions',
       align: 'right',
       render: (row) =>
         can.manageMaintenancePlans(roles) ? (

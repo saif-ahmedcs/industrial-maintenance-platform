@@ -193,7 +193,7 @@ export default function AssetsListPage() {
     },
     {
       key: 'actions',
-      header: '',
+      header: 'Actions',
       align: 'right',
       render: (row) => (
         <IconButton

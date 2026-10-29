@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -18,7 +19,11 @@ afterEach(async () => {
   await signOut();
 });
 
-function renderLoginPage(initialEntries: Parameters<typeof MemoryRouter>[0]['initialEntries'] = ['/login']) {
+function renderLoginPage(
+  initialEntries: Parameters<typeof MemoryRouter>[0]['initialEntries'] = [
+    '/login',
+  ],
+) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <Routes>
@@ -47,6 +52,11 @@ async function fillAndSubmit(
 }
 
 describe('LoginPage', () => {
+  it('has no axe violations on initial render (17.1)', async () => {
+    const { container } = renderLoginPage();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('shows validation messages and does not submit when fields are empty', async () => {
     const user = userEvent.setup();
     let loginCalls = 0;

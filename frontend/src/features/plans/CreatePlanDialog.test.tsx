@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { server } from '../../test/msw/server';
@@ -26,6 +27,12 @@ async function fillValidAssetAndName(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('CreatePlanDialog', () => {
+  it('has no axe violations when open (17.1)', async () => {
+    const { container } = renderDialog();
+    await screen.findByRole('dialog');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('rejects a non-integer interval with the same message the backend returns, without calling the API', async () => {
     const user = userEvent.setup();
     let createCalls = 0;

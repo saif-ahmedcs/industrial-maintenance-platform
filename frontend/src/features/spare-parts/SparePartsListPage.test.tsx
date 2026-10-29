@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,6 +60,24 @@ function makePart(overrides: Partial<SparePart>): SparePart {
 }
 
 describe('SparePartsListPage', () => {
+  it('has no axe violations when the list is loaded (17.1)', async () => {
+    mockSession(['VIEWER']);
+    await signIn({ accessToken: 'token', refreshToken: 'refresh' });
+
+    server.use(
+      http.get('/spare-parts', () =>
+        HttpResponse.json({
+          data: [makePart({})],
+          meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+        }),
+      ),
+    );
+
+    const { container } = renderPage();
+    await screen.findByRole('row', { name: /SKU-1/ }, { timeout: 5000 });
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('shows LOW STOCK exactly when the server marks isLowStock, including at the quantity === threshold boundary, and OUT takes priority at zero', async () => {
     mockSession(['VIEWER']);
     await signIn({ accessToken: 'token', refreshToken: 'refresh' });

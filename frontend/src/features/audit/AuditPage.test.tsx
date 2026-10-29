@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -72,6 +73,21 @@ function mockAuditLogs(entries: AuditLog[]) {
 }
 
 describe('AuditPage', () => {
+  it('has no axe violations when the list is loaded (17.1)', async () => {
+    mockSession(['ADMIN']);
+    await signIn({ accessToken: 'token', refreshToken: 'refresh' });
+
+    mockAuditLogs([makeAuditLog({})]);
+
+    const { container } = renderPage();
+    await screen.findByRole(
+      'row',
+      { name: /Status Change/ },
+      { timeout: 5000 },
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('shows "System" for a null actor and a user reference otherwise', async () => {
     mockSession(['ADMIN']);
     await signIn({ accessToken: 'token', refreshToken: 'refresh' });

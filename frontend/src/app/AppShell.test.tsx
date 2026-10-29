@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +9,7 @@ import { server } from '../test/msw/server';
 import { signIn, signOut } from '../lib/auth/session';
 import { AppShell } from './AppShell';
 import AlertsPage from '../features/alerts/AlertsPage';
+import OverviewPage from '../features/overview/OverviewPage';
 import type { Notification } from '../features/alerts/api';
 
 function mockSession(roles: string[]) {
@@ -50,6 +52,37 @@ function renderAppAtAlerts() {
   );
 }
 
+function renderAppAtOverview() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<OverviewPage />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function mockOverviewEndpoints() {
+  const emptyPage = {
+    data: [],
+    meta: { page: 1, limit: 5, total: 0, totalPages: 0 },
+  };
+  server.use(
+    http.get('/work-orders', () => HttpResponse.json(emptyPage)),
+    http.get('/assets', () => HttpResponse.json(emptyPage)),
+    http.get('/maintenance-plans/due', () => HttpResponse.json(emptyPage)),
+    http.get('/spare-parts', () => HttpResponse.json(emptyPage)),
+    http.get('/notifications', () => HttpResponse.json(emptyPage)),
+  );
+}
+
 function makeNotification(overrides: Partial<Notification> = {}): Notification {
   return {
     id: 'notif-1',
@@ -88,6 +121,20 @@ function mockNotificationsEndpoint(notification: Notification) {
     }),
   );
 }
+
+describe('AppShell + Overview — axe (17.1)', () => {
+  it('has no axe violations on the loaded overview shell', async () => {
+    mockSession(['TECHNICIAN']);
+    await signIn({ accessToken: 'token', refreshToken: 'refresh' });
+    mockOverviewEndpoints();
+
+    const { container } = renderAppAtOverview();
+
+    await screen.findByText('Nothing is overdue');
+    await screen.findByText(/No open work orders/);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
 
 describe('AppShell alert badge (14.4 / 14.5)', () => {
   it('shows the unread count and clears it once the alert is acknowledged', async () => {

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { axe } from 'jest-axe';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -91,6 +92,19 @@ function mockNotificationsEndpoint(notification: Notification) {
 }
 
 describe('AlertsPage', () => {
+  it('has no axe violations when the list is loaded (17.1)', async () => {
+    mockSession(['TECHNICIAN']);
+    await signIn({ accessToken: 'token', refreshToken: 'refresh' });
+
+    mockNotificationsEndpoint(makeNotification());
+
+    const { container } = renderPage();
+    await screen.findByText(
+      'PUMP-01 exceeded the critical temperature threshold.',
+    );
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it('defaults to the UNREAD filter and removes a resolved item after refetch', async () => {
     const user = userEvent.setup();
     mockSession(['TECHNICIAN']);

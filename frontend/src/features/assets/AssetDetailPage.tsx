@@ -280,7 +280,7 @@ export default function AssetDetailPage() {
     },
     {
       key: 'status',
-      header: '',
+      header: 'Status',
       align: 'right',
       render: (row) => (
         <div className="flex items-center justify-end gap-1.5">
