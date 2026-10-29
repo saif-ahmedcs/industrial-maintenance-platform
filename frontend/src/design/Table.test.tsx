@@ -157,9 +157,18 @@ describe('Table', () => {
     expect(container.querySelector('.custom-class')).toBeInTheDocument();
   });
 
-  // Step 17.1 — axe integration proof. This is not route coverage; it only
-  // proves the jest-axe wiring (matcher + violation detection) actually
-  // works, using the table markup already exercised above.
+  it('wraps the table in its own horizontal scroll container (17.2)', () => {
+    const { container } = render(
+      <Table columns={columns} rows={rows} rowKey={(row) => row.id} />,
+    );
+    const table = container.querySelector('table')!;
+    const scrollParent = table.parentElement!;
+    expect(scrollParent.className).toContain('overflow-x-auto');
+
+    const panel = scrollParent.parentElement!;
+    expect(panel.className).toContain('overflow-hidden');
+  });
+
   it('has no axe violations on the rendered table markup (17.1)', async () => {
     const { container } = render(
       <Table columns={columns} rows={rows} rowKey={(row) => row.id} />,
@@ -168,8 +177,6 @@ describe('Table', () => {
   });
 
   it('axe detects a deliberately unlabeled form control (17.1, sanity check)', async () => {
-    // Test-only fixture, not part of the Table component: proves the axe
-    // wiring actually flags a real violation rather than always passing.
     const { container } = render(
       <div>
         <input type="text" />

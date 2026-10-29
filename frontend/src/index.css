@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @import './design/theme.css';
 
+@font-face {
+  font-family: 'InterFallback';
+  src: local('Arial');
+  ascent-override: 90.2%;
+  descent-override: 22.48%;
+  line-gap-override: 0%;
+  size-adjust: 107.4%;
+}
+
 @layer base {
   html,
   body {
