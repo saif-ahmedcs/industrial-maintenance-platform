@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { EmptyState } from '../../design/EmptyState';
+import { ErrorBoundary } from '../../design/ErrorBoundary';
 import { ErrorState } from '../../design/ErrorState';
 import { Eyebrow } from '../../design/Eyebrow';
 import { Heading } from '../../design/Heading';
@@ -34,7 +35,7 @@ interface CounterTileProps {
   onRetry: () => void;
 }
 
-function CounterTile({
+function CounterTileContent({
   label,
   total,
   isPending,
@@ -61,6 +62,14 @@ function CounterTile({
         value={total === undefined ? undefined : formatNumber(total)}
       />
     </Surface>
+  );
+}
+
+function CounterTile(props: CounterTileProps) {
+  return (
+    <ErrorBoundary fallbackMessage={`Could not show "${props.label}."`}>
+      <CounterTileContent {...props} />
+    </ErrorBoundary>
   );
 }
 
@@ -175,27 +184,29 @@ export default function OverviewPage() {
             </div>
 
             <div className="px-9 pb-9">
-              {workOrderQueue.isError ? (
-                <ErrorState
-                  error={tileErrorMessage(workOrderQueue.error)}
-                  onRetry={() => workOrderQueue.refetch()}
-                  className="pt-6"
-                />
-              ) : workOrderQueue.isPending ? (
-                <div className="pt-6">
-                  <Skeleton lines={5} height={20} />
-                </div>
-              ) : queueItems.length === 0 ? (
-                <p className="pt-6 font-display text-body font-normal text-text-silver">
-                  No open work orders. Create one from an asset page.
-                </p>
-              ) : (
-                <div className="flex flex-col">
-                  {queueItems.map((workOrder) => (
-                    <WorkOrderRow key={workOrder.id} workOrder={workOrder} />
-                  ))}
-                </div>
-              )}
+              <ErrorBoundary fallbackMessage="Could not show the work order queue.">
+                {workOrderQueue.isError ? (
+                  <ErrorState
+                    error={tileErrorMessage(workOrderQueue.error)}
+                    onRetry={() => workOrderQueue.refetch()}
+                    className="pt-6"
+                  />
+                ) : workOrderQueue.isPending ? (
+                  <div className="pt-6">
+                    <Skeleton lines={5} height={20} />
+                  </div>
+                ) : queueItems.length === 0 ? (
+                  <p className="pt-6 font-display text-body font-normal text-text-silver">
+                    No open work orders. Create one from an asset page.
+                  </p>
+                ) : (
+                  <div className="flex flex-col">
+                    {queueItems.map((workOrder) => (
+                      <WorkOrderRow key={workOrder.id} workOrder={workOrder} />
+                    ))}
+                  </div>
+                )}
+              </ErrorBoundary>
             </div>
           </Surface>
         </div>
@@ -205,35 +216,37 @@ export default function OverviewPage() {
             Alerts
           </Eyebrow>
 
-          {unreadAlerts.isError ? (
-            <Surface tone="kelp">
-              <ErrorState
-                error={tileErrorMessage(unreadAlerts.error)}
-                onRetry={() => unreadAlerts.refetch()}
-              />
-            </Surface>
-          ) : unreadAlerts.isPending ? (
-            <Surface tone="kelp">
-              <Skeleton lines={5} height={20} />
-            </Surface>
-          ) : alertItems.length === 0 ? (
-            <div className="flex flex-col items-center gap-6">
-              <Sphere size={160} />
-              <EmptyState
-                title="Nothing is overdue"
-                body="No unread alerts right now."
-              />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {alertItems.map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
+          <ErrorBoundary fallbackMessage="Could not show alerts.">
+            {unreadAlerts.isError ? (
+              <Surface tone="kelp">
+                <ErrorState
+                  error={tileErrorMessage(unreadAlerts.error)}
+                  onRetry={() => unreadAlerts.refetch()}
                 />
-              ))}
-            </div>
-          )}
+              </Surface>
+            ) : unreadAlerts.isPending ? (
+              <Surface tone="kelp">
+                <Skeleton lines={5} height={20} />
+              </Surface>
+            ) : alertItems.length === 0 ? (
+              <div className="flex flex-col items-center gap-6">
+                <Sphere size={160} />
+                <EmptyState
+                  title="Nothing is overdue"
+                  body="No unread alerts right now."
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {alertItems.map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                  />
+                ))}
+              </div>
+            )}
+          </ErrorBoundary>
         </div>
       </div>
     </div>
