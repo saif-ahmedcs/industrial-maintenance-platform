@@ -17,17 +17,28 @@ const API_PREFIXES = [
   '/health',
 ];
 
+const API_PROXY = Object.fromEntries(
+  API_PREFIXES.map((p) => [
+    p,
+    { target: 'http://localhost:3000', changeOrigin: true },
+  ]),
+);
+
 export default defineConfig({
   base: '/app/',
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
-    proxy: Object.fromEntries(
-      API_PREFIXES.map((p) => [
-        p,
-        { target: 'http://localhost:3000', changeOrigin: true },
-      ]),
-    ),
+    proxy: API_PROXY,
+  },
+  // `vite preview` serves the production build used by the Playwright e2e
+  // suite (frontend/playwright.config.ts); it does not inherit `server.proxy`,
+  // so it needs its own proxy to reach the backend the same way the dev
+  // server does.
+  preview: {
+    port: 4173,
+    strictPort: true,
+    proxy: API_PROXY,
   },
   test: {
     environment: 'jsdom',
