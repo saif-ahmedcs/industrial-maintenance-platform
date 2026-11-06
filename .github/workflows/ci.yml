@@ -241,7 +241,7 @@ jobs:
       JWT_SECRET: ci-only-dummy-secret-value-not-for-prod-use
       JWT_ACCESS_EXPIRES_IN: 15m
       JWT_REFRESH_EXPIRES_IN_DAYS: 7
-      DEFAULT_ADMIN_EMAIL: admin.e2e@example.test
+      DEFAULT_ADMIN_EMAIL: admin.e2e@example.com
       DEFAULT_ADMIN_PASSWORD: E2eAdminPass123!
       PORT: 3000
 
