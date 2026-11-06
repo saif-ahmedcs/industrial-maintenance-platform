@@ -30,6 +30,11 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { RequestUser } from './interfaces/request-user.interface';
 import { User } from '../users/entities/user.entity';
+import {
+  AUTH_LOGIN_THROTTLE,
+  AUTH_REFRESH_THROTTLE,
+  AUTH_REGISTER_THROTTLE,
+} from './auth-rate-limit';
 
 const REFRESH_COOKIE_NAME = 'refresh_token';
 
@@ -42,7 +47,7 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('register')
   @ApiOperation({
     summary: 'Create a new user account (role-less until an admin assigns one)',
@@ -54,7 +59,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: AUTH_LOGIN_THROTTLE })
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -78,7 +83,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: AUTH_REFRESH_THROTTLE })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   @ApiOperation({

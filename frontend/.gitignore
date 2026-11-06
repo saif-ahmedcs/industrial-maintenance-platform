@@ -22,6 +22,10 @@ dist/
 /test-results/
 /blob-report/
 
+# global-setup.ts: cached per-role login sessions (live tokens, regenerated
+# by every e2e run)
+/e2e/.auth/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

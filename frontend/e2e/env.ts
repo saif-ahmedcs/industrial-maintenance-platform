@@ -46,3 +46,6 @@ export const SUPERVISOR_EMAIL = 'supervisor.e2e@example.test';
 export const SUPERVISOR_PASSWORD = 'E2eTestPass123!';
 export const TECHNICIAN_EMAIL = 'technician.e2e@example.test';
 export const TECHNICIAN_PASSWORD = 'E2eTestPass123!';
+
+export const VIEWER_EMAIL = 'viewer.e2e@example.test';
+export const VIEWER_PASSWORD = 'E2eTestPass123!';

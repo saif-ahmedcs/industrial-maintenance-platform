@@ -29,6 +29,7 @@
     "seed:demo": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-demo-data.ts",
     "seed:e2e-roles": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-e2e-roles.ts",
     "seed:index-audit": "node -r ts-node/register -r tsconfig-paths/register src/database/seeds/seed-index-audit-data.ts",
+    "export:openapi": "node -r ts-node/register -r tsconfig-paths/register scripts/export-openapi.ts",
     "prepare": "husky"
   },
   "lint-staged": {

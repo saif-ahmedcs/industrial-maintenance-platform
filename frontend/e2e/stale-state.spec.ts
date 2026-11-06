@@ -1,13 +1,14 @@
 import { test, expect, type Browser } from '@playwright/test';
-import { loginAsAdmin } from './fixtures';
+import { claimAdminSlot } from './storage-state';
 
 const ASSET_TAG = 'COMPRESSOR-01';
 const DESCRIPTION = `e2e stale-state ${Date.now()}`;
 
 async function newAdminPage(browser: Browser) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    storageState: claimAdminSlot(),
+  });
   const page = await context.newPage();
-  await loginAsAdmin(page);
   return { context, page };
 }
 

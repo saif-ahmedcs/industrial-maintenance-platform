@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -24,6 +25,11 @@ export default defineConfig({
       url: 'http://localhost:3000/health',
       reuseExistingServer: true,
       timeout: 120_000,
+      env: {
+        AUTH_REGISTER_RATE_LIMIT: '1000',
+        AUTH_LOGIN_RATE_LIMIT: '1000',
+        AUTH_REFRESH_RATE_LIMIT: '1000',
+      },
     },
     {
       command: 'npm run build && npm run preview',

@@ -1,11 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
-import { loginAs, loginAsAdmin } from './fixtures';
-import {
-  SUPERVISOR_EMAIL,
-  SUPERVISOR_PASSWORD,
-  TECHNICIAN_EMAIL,
-  TECHNICIAN_PASSWORD,
-} from './env';
+import { expect, type Page, test } from './fixtures';
 
 const ASSET_TAG = 'PUMP-02';
 
@@ -28,8 +21,9 @@ async function createWorkOrder(
 }
 
 test.describe('roles', () => {
-  test('ADMIN sees full access, including the audit log', async ({ page }) => {
-    await loginAsAdmin(page);
+  test('ADMIN sees full access, including the audit log', async ({
+    adminPage: page,
+  }) => {
     await page.goto('work-orders');
     await expect(
       page.getByRole('button', { name: 'Create work order' }),
@@ -42,9 +36,8 @@ test.describe('roles', () => {
   });
 
   test('SUPERVISOR can create and cancel work orders, and view the audit log', async ({
-    page,
+    supervisorPage: page,
   }) => {
-    await loginAs(page, SUPERVISOR_EMAIL, SUPERVISOR_PASSWORD);
     await createWorkOrder(
       page,
       ASSET_TAG,
@@ -65,9 +58,8 @@ test.describe('roles', () => {
   });
 
   test('TECHNICIAN can create and assign work orders but not cancel them, and /audit is not permitted', async ({
-    page,
+    technicianPage: page,
   }) => {
-    await loginAs(page, TECHNICIAN_EMAIL, TECHNICIAN_PASSWORD);
     await createWorkOrder(
       page,
       ASSET_TAG,
@@ -88,16 +80,8 @@ test.describe('roles', () => {
   });
 
   test('VIEWER has read-only access and /audit is not permitted', async ({
-    page,
+    viewerPage: page,
   }) => {
-    const email = `viewer.e2e.${Date.now()}@example.test`;
-    const password = 'E2eTestPass123!';
-    const registerResponse = await page.request.post('/auth/register', {
-      data: { email, password },
-    });
-    expect(registerResponse.ok()).toBe(true);
-
-    await loginAs(page, email, password);
     await page.goto('work-orders');
     await expect(
       page.getByRole('button', { name: 'Create work order' }),

@@ -106,3 +106,196 @@ jobs:
 
       - run: npm ci
       - run: npm run test:e2e
+
+  export-openapi:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: app_password
+          POSTGRES_DB: industrial_maintenance_openapi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: industrial_maintenance_openapi
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      MQTT_HOST: localhost
+      MQTT_PORT: 1883
+      MQTT_BACKEND_PASSWORD: ci-only-dummy-backend-password
+      JWT_SECRET: ci-only-dummy-secret-value-not-for-prod-use
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+      - run: npm run export:openapi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs/openapi.json
+          retention-days: 1
+
+  frontend:
+    needs: export-openapi
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: openapi-spec
+          path: docs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run check:tokens
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - run: npm run size
+      - name: API types up to date
+        run: npm run api:types && git diff --exit-code src/lib/api/schema.d.ts
+
+  frontend-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app_user
+          POSTGRES_PASSWORD: app_password
+          POSTGRES_DB: industrial_maintenance_ui_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: development
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: industrial_maintenance_ui_e2e
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      MQTT_HOST: localhost
+      MQTT_PORT: 1883
+      MQTT_SIMULATOR_PASSWORD: ci-only-dummy-simulator-password
+      MQTT_BACKEND_PASSWORD: ci-only-dummy-backend-password
+      JWT_SECRET: ci-only-dummy-secret-value-not-for-prod-use
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN_DAYS: 7
+      DEFAULT_ADMIN_EMAIL: admin.e2e@example.test
+      DEFAULT_ADMIN_PASSWORD: E2eAdminPass123!
+      PORT: 3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Mosquitto
+        run: |
+          docker run -d --name mqtt -p 1883:1883 \
+            -e MQTT_SIMULATOR_PASSWORD="$MQTT_SIMULATOR_PASSWORD" \
+            -e MQTT_BACKEND_PASSWORD="$MQTT_BACKEND_PASSWORD" \
+            -v ${{ github.workspace }}/docker/mosquitto.conf:/mosquitto/config/mosquitto.conf \
+            -v ${{ github.workspace }}/docker/mosquitto_acl.conf:/mosquitto/config/acl.conf \
+            -v ${{ github.workspace }}/docker/mosquitto-entrypoint.sh:/mosquitto/config/mosquitto-entrypoint.sh \
+            --entrypoint /bin/sh \
+            eclipse-mosquitto:2 /mosquitto/config/mosquitto-entrypoint.sh
+
+      - name: Build and start MQTT simulator
+        run: |
+          docker build -t im-simulator ${{ github.workspace }}/simulator
+          sleep 2
+          docker run -d --name simulator --network host \
+            -e MQTT_HOST=localhost \
+            -e MQTT_PORT=1883 \
+            -e MQTT_USERNAME=simulator \
+            -e MQTT_PASSWORD="$MQTT_SIMULATOR_PASSWORD" \
+            im-simulator
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: backend
+      - run: npm run migration:run
+        working-directory: backend
+      - run: npm run seed
+        working-directory: backend
+      - run: npm run seed:demo
+        working-directory: backend
+      - run: npm run seed:e2e-roles
+        working-directory: backend
+
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+
+      - name: Stop MQTT simulator and broker
+        if: always()
+        run: docker rm -f simulator mqtt 2>/dev/null || true
