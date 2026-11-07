@@ -10,8 +10,8 @@ async function createWorkOrder(
   await page.goto('work-orders');
   await page.getByRole('button', { name: 'Create work order' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('combobox').click();
-  await dialog.getByRole('combobox').fill(assetTag);
+  await dialog.getByLabel('Asset').click();
+  await dialog.getByLabel('Asset').fill(assetTag);
   await dialog.getByRole('option', { name: assetTag }).click();
   await dialog
     .getByPlaceholder('Pump bearing making unusual noise')

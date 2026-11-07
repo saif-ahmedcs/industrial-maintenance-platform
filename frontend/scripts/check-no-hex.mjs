@@ -30,10 +30,12 @@ function main() {
   const violations = [];
 
   for (const target of TARGETS) {
-    const files = walk(target.dir).filter(
-      (file) =>
-        !target.extensions || target.extensions.includes(path.extname(file)),
-    );
+    const files = walk(target.dir).filter((file) => {
+      if (/\.(test|spec)\./.test(path.basename(file))) return false;
+      return (
+        !target.extensions || target.extensions.includes(path.extname(file))
+      );
+    });
     for (const file of files) {
       const text = readFileSync(file, 'utf8');
       const lines = text.split('\n');

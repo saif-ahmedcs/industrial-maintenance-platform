@@ -11,8 +11,8 @@ test('create, assign, start, complete a work order, then verify the audit trail'
   await page.getByRole('button', { name: 'Create work order' }).click();
 
   const createDialog = page.getByRole('dialog');
-  await createDialog.getByRole('combobox').click();
-  await createDialog.getByRole('combobox').fill(ASSET_TAG);
+  await createDialog.getByLabel('Asset').click();
+  await createDialog.getByLabel('Asset').fill(ASSET_TAG);
   await createDialog.getByRole('option', { name: ASSET_TAG }).click();
   await createDialog
     .getByPlaceholder('Pump bearing making unusual noise')
