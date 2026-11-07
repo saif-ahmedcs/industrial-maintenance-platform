@@ -7,8 +7,7 @@ describe('ApiError.fromResponse', () => {
       JSON.stringify({
         statusCode: 409,
         error: 'Conflict',
-        message:
-          'Cannot transition work order from COMPLETED to IN_PROGRESS',
+        message: 'Cannot transition work order from COMPLETED to IN_PROGRESS',
         path: '/work-orders/abc/start',
         requestId: 'req-abc-123',
       }),

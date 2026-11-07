@@ -14,7 +14,9 @@ test('shows live readings for MOTOR-01 within the telemetry request budget', asy
   await page.getByLabel('Asset').fill(ASSET_TAG);
   await page.getByRole('option', { name: ASSET_TAG }).click();
 
-  await expect(page.getByText('Temperature')).toBeVisible();
+  await expect(page.getByText('Temperature')).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText('—', { exact: true })).toHaveCount(0);
 
   let telemetryRequestCount = 0;

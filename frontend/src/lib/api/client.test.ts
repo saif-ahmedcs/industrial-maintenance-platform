@@ -50,10 +50,7 @@ describe('request', () => {
     server.use(
       http.get('/thing', () => {
         thingCalls += 1;
-        return HttpResponse.json(
-          { message: 'Unauthorized' },
-          { status: 401 },
-        );
+        return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
       }),
       http.post('/auth/refresh', () => {
         refreshCalls += 1;

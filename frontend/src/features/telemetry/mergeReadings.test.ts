@@ -57,11 +57,7 @@ describe('mergeLatestReading', () => {
   });
 
   it('appends to an empty series', () => {
-    const result = mergeLatestReading(
-      [],
-      reading('2026-10-08T10:00:00Z'),
-      120,
-    );
+    const result = mergeLatestReading([], reading('2026-10-08T10:00:00Z'), 120);
     expect(result).toHaveLength(1);
   });
 

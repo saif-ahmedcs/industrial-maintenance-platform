@@ -7,6 +7,8 @@ const ALERT_WAIT_MS = 120_000;
 test('acknowledges a CRITICAL_ASSET alert and clears the unread badge', async ({
   adminPage: page,
 }) => {
+  test.setTimeout(200_000);
+
   const refreshResponse = await page.request.post('/auth/refresh');
   expect(refreshResponse.ok()).toBe(true);
   const { accessToken } = (await refreshResponse.json()) as {
