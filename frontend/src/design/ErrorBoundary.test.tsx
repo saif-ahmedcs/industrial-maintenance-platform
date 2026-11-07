@@ -74,10 +74,9 @@ describe('ErrorBoundary (17.5)', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
 
-    let attempt = 0;
-    function ThrowsOnFirstRenderOnly() {
-      attempt += 1;
-      if (attempt === 1) {
+    let shouldThrow = true;
+    function Throws() {
+      if (shouldThrow) {
         throw new Error('first render fails');
       }
       return <p>recovered content</p>;
@@ -85,13 +84,14 @@ describe('ErrorBoundary (17.5)', () => {
 
     render(
       <ErrorBoundary>
-        <ThrowsOnFirstRenderOnly />
+        <Throws />
       </ErrorBoundary>,
     );
     expect(
       screen.getByText('Something went wrong loading this.'),
     ).toBeInTheDocument();
 
+    shouldThrow = false;
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
     expect(screen.getByText('recovered content')).toBeInTheDocument();

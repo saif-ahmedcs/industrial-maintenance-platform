@@ -56,7 +56,7 @@ test('acknowledges a CRITICAL_ASSET alert and clears the unread badge', async ({
     alertCard.getByRole('button', { name: 'Acknowledge' }),
   ).toBeVisible();
 
-  const badge = page.getByRole('link', { name: /Alerts/ }).locator('span');
+  const badge = page.getByRole('link', { name: /alerts/i }).locator('span');
   const badgeCountBefore = await badge.textContent();
 
   await alertCard.getByRole('button', { name: 'Acknowledge' }).click();

@@ -1,5 +1,5 @@
-/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -31,10 +31,6 @@ export default defineConfig({
     port: 5173,
     proxy: API_PROXY,
   },
-  // `vite preview` serves the production build used by the Playwright e2e
-  // suite (frontend/playwright.config.ts); it does not inherit `server.proxy`,
-  // so it needs its own proxy to reach the backend the same way the dev
-  // server does.
   preview: {
     port: 4173,
     strictPort: true,
@@ -44,5 +40,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });
