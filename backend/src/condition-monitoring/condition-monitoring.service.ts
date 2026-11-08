@@ -56,14 +56,23 @@ export class ConditionMonitoringService {
       return;
     }
 
-    const hasActiveAutoWorkOrder = await this.workOrderRepo.exists({
-      where: {
-        assetId,
-        source: WorkOrderSource.AUTO,
-        status: In(ACTIVE_WORK_ORDER_STATUSES),
-      },
-    });
-    if (hasActiveAutoWorkOrder) {
+    const [hasActiveAutoWorkOrder, hasActiveNotification] = await Promise.all(
+      [
+        this.workOrderRepo.exists({
+          where: {
+            assetId,
+            source: WorkOrderSource.AUTO,
+            status: In(ACTIVE_WORK_ORDER_STATUSES),
+          },
+        }),
+        this.notificationsService.hasActiveNotification(
+          NotificationType.CRITICAL_ASSET,
+          'Asset',
+          assetId,
+        ),
+      ],
+    );
+    if (hasActiveAutoWorkOrder || hasActiveNotification) {
       return;
     }
 

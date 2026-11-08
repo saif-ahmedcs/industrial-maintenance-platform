@@ -7,7 +7,10 @@ describe('ConditionMonitoringService', () => {
   let dataSource: { manager: { findOne: jest.Mock }; transaction: jest.Mock };
   let auditService: { record: jest.Mock };
   let assetHistoryService: { record: jest.Mock };
-  let notificationsService: { record: jest.Mock };
+  let notificationsService: {
+    record: jest.Mock;
+    hasActiveNotification: jest.Mock;
+  };
   let aiInsightsService: { generate: jest.Mock };
 
   beforeEach(() => {
@@ -19,7 +22,10 @@ describe('ConditionMonitoringService', () => {
     };
     auditService = { record: jest.fn() };
     assetHistoryService = { record: jest.fn() };
-    notificationsService = { record: jest.fn() };
+    notificationsService = {
+      record: jest.fn(),
+      hasActiveNotification: jest.fn(async () => false),
+    };
     aiInsightsService = { generate: jest.fn() };
 
     service = new ConditionMonitoringService(
@@ -57,6 +63,38 @@ describe('ConditionMonitoringService', () => {
     await service.evaluateAsset('asset-1');
 
     expect(workOrderRepo.exists).not.toHaveBeenCalled();
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('does not open a second work order/notification when an active auto work order already exists', async () => {
+    readingRepo.find.mockResolvedValue([
+      { temperature: 90 },
+      { temperature: 90 },
+      { temperature: 90 },
+    ]);
+    workOrderRepo.exists.mockResolvedValue(true);
+
+    await service.evaluateAsset('asset-1');
+
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('does not create a duplicate notification when one is already active, even if the auto work order was cancelled', async () => {
+    readingRepo.find.mockResolvedValue([
+      { temperature: 90 },
+      { temperature: 90 },
+      { temperature: 90 },
+    ]);
+    workOrderRepo.exists.mockResolvedValue(false);
+    notificationsService.hasActiveNotification.mockResolvedValue(true);
+
+    await service.evaluateAsset('asset-1');
+
+    expect(notificationsService.hasActiveNotification).toHaveBeenCalledWith(
+      'CRITICAL_ASSET',
+      'Asset',
+      'asset-1',
+    );
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 });
