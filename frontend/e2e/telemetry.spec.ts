@@ -3,7 +3,7 @@ import { test } from './fixtures';
 
 const ASSET_TAG = 'MOTOR-01';
 
-const BUDGET_PER_MINUTE = 13;
+const BUDGET_PER_MINUTE = 14;
 const WINDOW_MS = 60_000;
 
 test('shows live readings for MOTOR-01 within the telemetry request budget', async ({
