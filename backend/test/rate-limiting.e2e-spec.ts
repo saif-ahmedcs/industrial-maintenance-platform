@@ -99,4 +99,66 @@ describe('Rate limiting (e2e)', () => {
 
     await me(userB.accessToken).expect(200);
   });
+
+  it('shares the bucket across several sessions of the same user — e.g. the e2e admin session pool (frontend/e2e/storage-state.ts), which logs the one seeded admin account in multiple times', async () => {
+    const dataSource = app.get(DataSource);
+    const pooledUser = await registerAndLogin(app, dataSource, {
+      emailPrefix: 'rl-pooled-user',
+    });
+    const secondSession = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: pooledUser.email, password: PASSWORD })
+      .expect(200);
+    const secondSessionToken = secondSession.body.accessToken as string;
+
+    const me = (accessToken: string) =>
+      request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+    for (let i = 0; i < 60; i++) {
+      await me(pooledUser.accessToken).expect(200);
+    }
+
+    // The session that made the 60 calls is blocked, same as the single
+    // -session case above...
+    const blockedFirstSession = await me(pooledUser.accessToken);
+    expect(blockedFirstSession.status).toBe(429);
+
+    // ...and so is the second session, even though it never made a call
+    // itself: it's a login of the same account, so it shares the bucket.
+    const blockedSecondSession = await me(secondSessionToken);
+    expect(blockedSecondSession.status).toBe(429);
+  });
+
+  it('DEFAULT_RATE_LIMIT raises that shared bucket, the way frontend/playwright.config.ts sets it for the e2e run', async () => {
+    const dataSource = app.get(DataSource);
+    const pooledUser = await registerAndLogin(app, dataSource, {
+      emailPrefix: 'rl-pooled-user-override',
+    });
+    const secondSession = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: pooledUser.email, password: PASSWORD })
+      .expect(200);
+    const secondSessionToken = secondSession.body.accessToken as string;
+
+    const me = (accessToken: string) =>
+      request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`);
+
+    process.env.DEFAULT_RATE_LIMIT = '1000';
+    try {
+      for (let i = 0; i < 60; i++) {
+        await me(pooledUser.accessToken).expect(200);
+      }
+
+      // Past what the production default (60) would allow, but both
+      // sessions of this one pooled user keep working.
+      await me(pooledUser.accessToken).expect(200);
+      await me(secondSessionToken).expect(200);
+    } finally {
+      delete process.env.DEFAULT_RATE_LIMIT;
+    }
+  });
 });

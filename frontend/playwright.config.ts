@@ -29,6 +29,7 @@ export default defineConfig({
         AUTH_REGISTER_RATE_LIMIT: '1000',
         AUTH_LOGIN_RATE_LIMIT: '1000',
         AUTH_REFRESH_RATE_LIMIT: '1000',
+        DEFAULT_RATE_LIMIT: '1000',
       },
     },
     {

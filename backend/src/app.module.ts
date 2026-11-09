@@ -27,6 +27,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
+import { defaultThrottleLimit } from './common/throttler/default-throttle';
 
 @Module({
   imports: [
@@ -66,7 +67,7 @@ import { UserThrottlerGuard } from './common/throttler/user-throttler.guard';
       {
         name: 'default',
         ttl: 60_000,
-        limit: 60,
+        limit: defaultThrottleLimit,
       },
     ]),
     ScheduleModule.forRoot(),
