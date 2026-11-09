@@ -5,16 +5,21 @@ const ASSET_TAG = 'MOTOR-01';
 
 const BUDGET_PER_MINUTE = 14;
 const WINDOW_MS = 60_000;
+const TEST_TIMEOUT_MS = 120_000;
 
 test('shows live readings for MOTOR-01 within the telemetry request budget', async ({
   adminPage: page,
 }) => {
+  test.setTimeout(TEST_TIMEOUT_MS);
+
   await page.goto('telemetry');
   await page.getByLabel('Asset').click();
   await page.getByLabel('Asset').fill(ASSET_TAG);
   await page.getByRole('option', { name: ASSET_TAG }).click();
 
-  await expect(page.getByText('Temperature')).toBeVisible({
+  await expect(
+    page.locator('span').filter({ hasText: /^Temperature$/ }),
+  ).toBeVisible({
     timeout: 15_000,
   });
   await expect(page.getByText('—', { exact: true })).toHaveCount(0);
