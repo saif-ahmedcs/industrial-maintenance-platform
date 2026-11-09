@@ -6,6 +6,7 @@ import { Field } from '../../design/Field';
 import { Heading } from '../../design/Heading';
 import { Select, type SelectOption } from '../../design/Select';
 import { listAssets } from '../assets/api';
+import { MAX_TELEMETRY_HISTORY_LIMIT } from './api';
 import { TelemetryPanel } from './TelemetryPanel';
 
 const REFERENCE_STALE_TIME = 5 * 60_000;
@@ -13,15 +14,20 @@ const REFERENCE_STALE_TIME = 5 * 60_000;
 const RANGE_OPTIONS: SelectOption[] = [
   { value: '20', label: 'Last 20 readings' },
   { value: '60', label: 'Last 60 readings' },
-  { value: '120', label: 'Last 120 readings' },
-  { value: '300', label: 'Last 300 readings' },
+  {
+    value: String(MAX_TELEMETRY_HISTORY_LIMIT),
+    label: `Last ${MAX_TELEMETRY_HISTORY_LIMIT} readings`,
+  },
 ];
-const DEFAULT_RANGE = '120';
+const DEFAULT_RANGE = String(MAX_TELEMETRY_HISTORY_LIMIT);
 
 export default function TelemetryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const assetId = searchParams.get('assetId') ?? '';
-  const range = searchParams.get('range') ?? DEFAULT_RANGE;
+  const requestedRange = searchParams.get('range');
+  const range = RANGE_OPTIONS.some((option) => option.value === requestedRange)
+    ? (requestedRange as string)
+    : DEFAULT_RANGE;
 
   const assetsQuery = useQuery({
     queryKey: [

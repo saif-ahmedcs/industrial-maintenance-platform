@@ -78,7 +78,7 @@ describe('TelemetryPage', () => {
       http.get('/assets/asset-1/telemetry', () =>
         HttpResponse.json({
           data: [],
-          meta: { page: 1, limit: 120, total: 0, totalPages: 0 },
+          meta: { page: 1, limit: 100, total: 0, totalPages: 0 },
         }),
       ),
     );

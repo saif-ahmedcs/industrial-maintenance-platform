@@ -4,6 +4,8 @@ import { paginated } from '../../lib/api/pagination';
 
 export const HOT_TEMPERATURE_THRESHOLD_C = 80;
 
+export const MAX_TELEMETRY_HISTORY_LIMIT = 100;
+
 export const telemetryReadingSchema = z.object({
   assetId: z.string(),
   temperature: z.number(),
@@ -26,14 +28,18 @@ export interface GetTelemetryHistoryParams {
   limit?: number;
 }
 
-/**
- * GET /assets/:id/telemetry (paginated)*/
+/*GET /assets/:id/telemetry (paginated). */
 export async function getTelemetryHistory(
   assetId: string,
   params: GetTelemetryHistoryParams = {},
 ) {
+  const limit =
+    params.limit === undefined
+      ? undefined
+      : Math.min(params.limit, MAX_TELEMETRY_HISTORY_LIMIT);
   const data = await request<unknown>(`/assets/${assetId}/telemetry`, {
-    query: { ...params, sortDir: 'ASC' },
+    query: { ...params, limit, sortDir: 'DESC' },
   });
-  return paginated(telemetryReadingSchema).parse(data);
+  const page = paginated(telemetryReadingSchema).parse(data);
+  return { ...page, data: [...page.data].reverse() };
 }

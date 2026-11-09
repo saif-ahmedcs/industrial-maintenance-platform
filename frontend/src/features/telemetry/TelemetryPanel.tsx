@@ -15,6 +15,7 @@ import {
 import { TelemetryChart } from './Chart';
 import {
   HOT_TEMPERATURE_THRESHOLD_C,
+  MAX_TELEMETRY_HISTORY_LIMIT,
   getLatestTelemetry,
   getTelemetryHistory,
   type TelemetryReading,
@@ -24,7 +25,7 @@ import { mergeLatestReading } from './mergeReadings';
 const LATEST_POLL_MS = 5_000;
 const HISTORY_POLL_MS = 60_000;
 const STALE_AFTER_MS = 60_000;
-const DEFAULT_LIMIT = 120;
+const DEFAULT_LIMIT = MAX_TELEMETRY_HISTORY_LIMIT;
 
 export interface TelemetryPanelProps {
   assetId: string;
