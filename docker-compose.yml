@@ -71,7 +71,7 @@ services:
       context: ./frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
+      - "${FRONTEND_PORT}:5173"
     environment:
       BACKEND_PROXY_TARGET: http://host.docker.internal:3000
     extra_hosts:

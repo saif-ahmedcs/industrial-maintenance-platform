@@ -36,6 +36,10 @@
     "*.ts": [
       "oxlint",
       "prettier --write"
+    ],
+    "frontend/src/**/*.{ts,tsx}": [
+      "npm --prefix frontend exec -- oxlint",
+      "npm --prefix frontend exec -- prettier --write"
     ]
   },
   "dependencies": {
