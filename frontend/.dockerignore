@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env.local
+
+playwright-report
+test-results
+blob-report
+e2e/.auth
+
+.vscode
+.idea
+.DS_Store

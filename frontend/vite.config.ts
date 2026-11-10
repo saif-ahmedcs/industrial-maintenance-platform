@@ -17,10 +17,13 @@ const API_PREFIXES = [
   '/health',
 ];
 
+const BACKEND_PROXY_TARGET =
+  process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
+
 const API_PROXY = Object.fromEntries(
   API_PREFIXES.map((p) => [
     p,
-    { target: 'http://localhost:3000', changeOrigin: true },
+    { target: BACKEND_PROXY_TARGET, changeOrigin: true },
   ]),
 );
 
