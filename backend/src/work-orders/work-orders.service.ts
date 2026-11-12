@@ -16,6 +16,7 @@ import { AssetHistoryService } from '../asset-history/asset-history.service';
 import { MaintenancePlan } from '../maintenance-plans/entities/maintenance-plan.entity';
 import { RoleName } from '../users/entities/role.entity';
 import { AssignWorkOrderDto } from './dto/assign-work-order.dto';
+import { BlockWorkOrderDto } from './dto/block-work-order.dto';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
@@ -262,6 +263,7 @@ export class WorkOrdersService {
       const before = { status: workOrder.status };
       workOrder.status = WorkOrderStatus.IN_PROGRESS;
       workOrder.startedAt = new Date();
+      workOrder.blockReason = null;
       const saved = await manager.save(workOrder);
 
       await this.auditService.record(manager, {
@@ -271,6 +273,47 @@ export class WorkOrdersService {
         action: 'START',
         before,
         after: { status: saved.status },
+        source: 'manual',
+      });
+
+      return saved;
+    });
+  }
+
+  async block(
+    id: string,
+    dto: BlockWorkOrderDto,
+    actor: RequestUser,
+  ): Promise<WorkOrder> {
+    return this.dataSource.transaction(async (manager) => {
+      const workOrder = await this.lockWorkOrder(manager, id);
+
+      if (
+        workOrder.assignedToUserId !== actor.id &&
+        !this.isPrivileged(actor)
+      ) {
+        throw new ForbiddenException(
+          'Only the assigned technician, a supervisor, or an admin can block this work order',
+        );
+      }
+
+      assertValidWorkOrderTransition(workOrder.status, WorkOrderStatus.BLOCKED);
+
+      const before = {
+        status: workOrder.status,
+        blockReason: workOrder.blockReason,
+      };
+      workOrder.status = WorkOrderStatus.BLOCKED;
+      workOrder.blockReason = dto.reason;
+      const saved = await manager.save(workOrder);
+
+      await this.auditService.record(manager, {
+        actorUserId: actor.id,
+        entityType: 'WorkOrder',
+        entityId: saved.id,
+        action: 'BLOCK',
+        before,
+        after: { status: saved.status, blockReason: saved.blockReason },
         source: 'manual',
       });
 

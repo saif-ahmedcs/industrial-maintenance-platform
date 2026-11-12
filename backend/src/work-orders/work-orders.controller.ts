@@ -22,6 +22,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { RequestUser } from '../auth/interfaces/request-user.interface';
 import { RoleName } from '../users/entities/role.entity';
 import { AssignWorkOrderDto } from './dto/assign-work-order.dto';
+import { BlockWorkOrderDto } from './dto/block-work-order.dto';
 import { CompleteWorkOrderDto } from './dto/complete-work-order.dto';
 import { CreateWorkOrderDto } from './dto/create-work-order.dto';
 import { WorkOrderQueryDto } from './dto/work-order-query.dto';
@@ -109,6 +110,24 @@ export class WorkOrdersController {
   ) {
     return WorkOrderResponseDto.fromEntity(
       await this.workOrdersService.start(id, user),
+    );
+  }
+
+  @Patch(':id/block')
+  @Roles(RoleName.ADMIN, RoleName.SUPERVISOR, RoleName.TECHNICIAN)
+  @ApiOperation({
+    summary:
+      'Block a work order with a reason (IN_PROGRESS only; ADMIN, SUPERVISOR, or the assigned TECHNICIAN)',
+  })
+  @ApiOkResponse({ type: WorkOrderResponseDto })
+  @ApiConflictResponse({ description: 'Illegal status transition' })
+  async block(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: BlockWorkOrderDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return WorkOrderResponseDto.fromEntity(
+      await this.workOrdersService.block(id, dto, user),
     );
   }
 

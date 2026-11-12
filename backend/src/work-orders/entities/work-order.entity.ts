@@ -119,6 +119,9 @@ export class WorkOrder {
   @Column({ name: 'ai_note', type: 'text', nullable: true })
   aiNote: string | null;
 
+  @Column({ name: 'block_reason', type: 'text', nullable: true })
+  blockReason: string | null;
+
   @OneToMany(() => WorkOrderPart, (part) => part.workOrder)
   workOrderParts: WorkOrderPart[];
 }

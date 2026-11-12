@@ -380,4 +380,72 @@ describe('WorkOrdersService.complete', () => {
       );
     });
   });
+
+  describe('block', () => {
+    it('blocks an IN_PROGRESS work order assigned to the technician, recording the reason', async () => {
+      const result = await service.block(
+        'wo-1',
+        { reason: 'Waiting on replacement bearing from supplier' },
+        technician,
+      );
+
+      expect(result.status).toBe(WorkOrderStatus.BLOCKED);
+      expect(result.blockReason).toBe(
+        'Waiting on replacement bearing from supplier',
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          entityType: 'WorkOrder',
+          entityId: 'wo-1',
+          action: 'BLOCK',
+          after: expect.objectContaining({
+            status: WorkOrderStatus.BLOCKED,
+            blockReason: 'Waiting on replacement bearing from supplier',
+          }),
+        }),
+      );
+    });
+
+    it('throws ForbiddenException for a technician who is not the assignee', async () => {
+      const otherTech: RequestUser = {
+        id: 'tech-2',
+        email: 'other@example.com',
+        roles: [RoleName.TECHNICIAN],
+      };
+
+      await expect(
+        service.block('wo-1', { reason: 'Needs a part' }, otherTech),
+      ).rejects.toThrow(ForbiddenException);
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it('allows a supervisor who is not the assignee to block it', async () => {
+      workOrder.assignedToUserId = 'someone-else';
+
+      await expect(
+        service.block('wo-1', { reason: 'Site access restricted' }, supervisor),
+      ).resolves.toMatchObject({ status: WorkOrderStatus.BLOCKED });
+    });
+
+    it('throws ConflictException when the work order is not IN_PROGRESS', async () => {
+      workOrder.status = WorkOrderStatus.OPEN;
+
+      await expect(
+        service.block('wo-1', { reason: 'Needs a part' }, technician),
+      ).rejects.toThrow(ConflictException);
+      expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it('clears blockReason when the work order is restarted', async () => {
+      workOrder.status = WorkOrderStatus.BLOCKED;
+      workOrder.blockReason = 'Waiting on replacement bearing from supplier';
+
+      const result = await service.start('wo-1', technician);
+
+      expect(result.status).toBe(WorkOrderStatus.IN_PROGRESS);
+      expect(result.blockReason).toBeNull();
+    });
+  });
 });

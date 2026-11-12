@@ -69,6 +69,13 @@ export class WorkOrderResponseDto {
   })
   aiNote: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Reason given when the order was blocked; cleared when it is restarted',
+  })
+  blockReason: string | null;
+
   @ApiProperty({ type: () => WorkOrderPartResponseDto, isArray: true })
   parts: WorkOrderPartResponseDto[];
 
@@ -89,6 +96,7 @@ export class WorkOrderResponseDto {
     dto.cancelledAt = workOrder.cancelledAt;
     dto.totalCost = workOrder.totalCost;
     dto.aiNote = workOrder.aiNote ?? null;
+    dto.blockReason = workOrder.blockReason ?? null;
     dto.parts = (workOrder.workOrderParts ?? []).map((part) => ({
       sparePartId: part.sparePartId,
       quantityUsed: part.quantityUsed,
