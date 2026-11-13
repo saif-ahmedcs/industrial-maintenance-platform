@@ -34,6 +34,7 @@ erDiagram
     USERS {
         uuid id PK
         string email UK
+        string name "nullable; required only via POST /users (B2.2)"
         string password_hash
         boolean is_active
         timestamp created_at

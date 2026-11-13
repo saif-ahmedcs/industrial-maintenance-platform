@@ -190,7 +190,7 @@ export class AuthService {
     return { token, record };
   }
 
-  private async revokeAllForUser(
+  async revokeAllForUser(
     userId: string,
     manager?: EntityManager,
   ): Promise<void> {
