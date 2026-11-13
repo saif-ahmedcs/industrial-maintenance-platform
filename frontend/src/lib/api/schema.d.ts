@@ -37,6 +37,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/audit': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Query the append-only audit log (ADMIN, SUPERVISOR)
+     * @description audit_logs is immutable at the database level (REVOKE + trigger) — this is read-only by construction, not just by omission of write routes.
+     */
+    get: operations['AuditController_findAll'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/register': {
     parameters: {
       query?: never;
@@ -122,19 +142,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/audit': {
+  '/users': {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    /**
-     * Query the append-only audit log (ADMIN, SUPERVISOR)
-     * @description audit_logs is immutable at the database level (REVOKE + trigger) — this is read-only by construction, not just by omission of write routes.
-     */
-    get: operations['AuditController_findAll'];
+    /** List users, paginated, filterable by role/active (ADMIN) */
+    get: operations['UsersController_findAll'];
     put?: never;
+    /** Create a user with email, name and roles; returns a generated temporary password once (ADMIN) */
+    post: operations['UsersController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/users/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Update a user's name and/or active state (ADMIN)
+     * @description Deactivating revokes all of the user’s refresh tokens. Deactivating the last active ADMIN returns 409.
+     */
+    patch: operations['UsersController_update'];
+    trace?: never;
+  };
+  '/users/{id}/roles': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Replace a user's role set (ADMIN)
+     * @description Removing ADMIN from the last active ADMIN returns 409.
+     */
+    put: operations['UsersController_updateRoles'];
     post?: never;
     delete?: never;
     options?: never;
@@ -521,6 +579,23 @@ export interface paths {
     patch: operations['WorkOrdersController_start'];
     trace?: never;
   };
+  '/work-orders/{id}/block': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Block a work order with a reason (IN_PROGRESS only; ADMIN, SUPERVISOR, or the assigned TECHNICIAN) */
+    patch: operations['WorkOrdersController_block'];
+    trace?: never;
+  };
   '/work-orders/{id}/cancel': {
     parameters: {
       query?: never;
@@ -665,6 +740,48 @@ export interface components {
     RefreshDto: {
       /** @description The refresh token issued at login or by a previous call to this endpoint. Optional when the refresh_token httpOnly cookie is present — the cookie is preferred and this field is kept only as a fallback for clients that cannot use cookies. */
       refreshToken?: string;
+    };
+    UserResponseDto: {
+      id: string;
+      email: string;
+      name: Record<string, never> | null;
+      isActive: boolean;
+      roles: ('ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'VIEWER')[];
+      /** Format: date-time */
+      createdAt: string;
+    };
+    CreateUserDto: {
+      /** @example supervisor@example.com */
+      email: string;
+      /** @example Jordan Reyes */
+      name: string;
+      /**
+       * @example [
+       *       "SUPERVISOR"
+       *     ]
+       */
+      roles: ('ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'VIEWER')[];
+    };
+    CreateUserResponseDto: {
+      id: string;
+      email: string;
+      name: Record<string, never> | null;
+      isActive: boolean;
+      roles: ('ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'VIEWER')[];
+      /** Format: date-time */
+      createdAt: string;
+      /** @description Shown once. It is hashed before storage and cannot be retrieved again — use the (B3) reset-password endpoint if it is lost. */
+      temporaryPassword: string;
+    };
+    UpdateUserDto: {
+      /** @example Jordan Reyes */
+      name?: string;
+      /** @description Deactivating revokes all of this user’s refresh tokens. The last active ADMIN cannot be deactivated (409). */
+      active?: boolean;
+    };
+    UpdateUserRolesDto: {
+      /** @description Replaces the full role set. Removing ADMIN from the last active ADMIN returns 409. */
+      roles: ('ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'VIEWER')[];
     };
     PlantResponseDto: {
       id: string;
@@ -865,6 +982,8 @@ export interface components {
       totalCost: Record<string, never> | null;
       /** @description AI-generated diagnostic note, present only when enabled and successful */
       aiNote: Record<string, never> | null;
+      /** @description Reason given when the order was blocked; cleared when it is restarted */
+      blockReason: Record<string, never> | null;
       parts: components['schemas']['WorkOrderPartResponseDto'][];
     };
     CreateWorkOrderDto: {
@@ -882,6 +1001,10 @@ export interface components {
     AssignWorkOrderDto: {
       /** @description Defaults to the caller if omitted */
       assignedToUserId?: string;
+    };
+    BlockWorkOrderDto: {
+      /** @example Waiting on replacement bearing from supplier */
+      reason: string;
     };
     CompleteWorkOrderPartDto: {
       sparePartId: string;
@@ -1059,6 +1182,41 @@ export interface operations {
       };
     };
   };
+  AuditController_findAll: {
+    parameters: {
+      query?: {
+        page?: number;
+        limit?: number;
+        /** @description Column to sort by (resource-specific) */
+        sortBy?: string;
+        sortDir?: 'ASC' | 'DESC' | 'asc' | 'desc';
+        entityType?: string;
+        entityId?: string;
+        /** @description Null for system/auto-generated entries */
+        actorUserId?: string;
+        action?: string;
+        /** @description "manual" or "auto:condition-monitoring" */
+        source?: string;
+        /** @description ISO 8601, inclusive lower bound on createdAt */
+        dateFrom?: string;
+        /** @description ISO 8601, inclusive upper bound on createdAt */
+        dateTo?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Paginated audit_logs rows: id, actorUserId (nullable), entityType, entityId, action, before (jsonb), after (jsonb), source, createdAt */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   AuthController_register: {
     parameters: {
       query?: never;
@@ -1180,7 +1338,7 @@ export interface operations {
       };
     };
   };
-  AuditController_findAll: {
+  UsersController_findAll: {
     parameters: {
       query?: {
         page?: number;
@@ -1188,17 +1346,10 @@ export interface operations {
         /** @description Column to sort by (resource-specific) */
         sortBy?: string;
         sortDir?: 'ASC' | 'DESC' | 'asc' | 'desc';
-        entityType?: string;
-        entityId?: string;
-        /** @description Null for system/auto-generated entries */
-        actorUserId?: string;
-        action?: string;
-        /** @description "manual" or "auto:condition-monitoring" */
-        source?: string;
-        /** @description ISO 8601, inclusive lower bound on createdAt */
-        dateFrom?: string;
-        /** @description ISO 8601, inclusive upper bound on createdAt */
-        dateTo?: string;
+        /** @description Filter to users holding this role */
+        role?: 'ADMIN' | 'SUPERVISOR' | 'TECHNICIAN' | 'VIEWER';
+        /** @description Filter by active state */
+        active?: boolean;
       };
       header?: never;
       path?: never;
@@ -1206,12 +1357,86 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Paginated audit_logs rows: id, actorUserId (nullable), entityType, entityId, action, before (jsonb), after (jsonb), source, createdAt */
       200: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['UserResponseDto'][];
+        };
+      };
+    };
+  };
+  UsersController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateUserDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreateUserResponseDto'];
+        };
+      };
+    };
+  };
+  UsersController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateUserDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserResponseDto'];
+        };
+      };
+    };
+  };
+  UsersController_updateRoles: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateUserRolesDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['UserResponseDto'];
+        };
       };
     };
   };
@@ -2165,6 +2390,38 @@ export interface operations {
       cookie?: never;
     };
     requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['WorkOrderResponseDto'];
+        };
+      };
+      /** @description Illegal status transition */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  WorkOrdersController_block: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BlockWorkOrderDto'];
+      };
+    };
     responses: {
       200: {
         headers: {

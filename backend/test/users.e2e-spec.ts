@@ -7,6 +7,10 @@ import { AppModule } from './../src/app.module';
 import { RoleName } from './../src/users/entities/role.entity';
 import { registerAndLogin } from './utils/register-and-login';
 
+// POST /auth/login is throttled to 5 requests/minute per IP, and the whole
+// file shares one IP. The three fixture sessions below are therefore minted
+// directly (mintToken) so that only the tests that genuinely exercise login
+// with a temporary password spend that budget.
 describe('Users (e2e)', () => {
   let app: INestApplication<App>;
   let dataSource: DataSource;
@@ -36,11 +40,13 @@ describe('Users (e2e)', () => {
       await registerAndLogin(app, dataSource, {
         role: RoleName.ADMIN,
         emailPrefix: `users-e2e-admin-${tag}`,
+        mintToken: true,
       })
     ).accessToken;
     viewerToken = (
       await registerAndLogin(app, dataSource, {
         emailPrefix: `users-e2e-viewer-${tag}`,
+        mintToken: true,
       })
     ).accessToken;
   });
@@ -297,6 +303,7 @@ describe('Users (e2e)', () => {
         await registerAndLogin(app, dataSource, {
           role: RoleName.ADMIN,
           emailPrefix: `users-e2e-lone-admin-${tag}`,
+          mintToken: true,
         })
       ).accessToken;
       const meRes = await request(app.getHttpServer())
