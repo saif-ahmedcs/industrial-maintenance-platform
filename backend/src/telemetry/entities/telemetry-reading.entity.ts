@@ -11,7 +11,8 @@ import { Asset } from '../../assets/entities/asset.entity';
 import { decimalTransformer } from '../../common/transformers/decimal.transformer';
 
 @Entity('telemetry_readings')
-@Index(['assetId', 'recordedAt'])
+@Index('IDX_telemetry_readings_asset_id_recorded_at', ['assetId', 'recordedAt'])
+@Index('IDX_telemetry_readings_recorded_at', ['recordedAt'])
 export class TelemetryReading {
   @PrimaryGeneratedColumn('uuid')
   id: string;

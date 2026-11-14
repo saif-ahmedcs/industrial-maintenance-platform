@@ -10,6 +10,7 @@ import { PaginationQueryDto } from '../common/pagination/pagination-query.dto';
 import { REDIS_CLIENT } from '../redis/redis.module';
 import { TelemetryReadingDto } from './dto/telemetry-reading.dto';
 import { TelemetryReadingResponseDto } from './dto/telemetry-reading-response.dto';
+import { TelemetrySummaryResponseDto } from './dto/telemetry-summary-response.dto';
 import { TelemetryReading } from './entities/telemetry-reading.entity';
 import { TelemetryJobData } from './interfaces/telemetry-job-data.interface';
 
@@ -104,6 +105,21 @@ export class TelemetryService {
     return {
       data: result.data.map((r) => TelemetryReadingResponseDto.fromEntity(r)),
       meta: result.meta,
+    };
+  }
+
+  async getSummary(since: string): Promise<TelemetrySummaryResponseDto> {
+    const summary = await this.readings
+      .createQueryBuilder('reading')
+      .select('COUNT(reading.id)', 'readingCount')
+      .addSelect('COUNT(DISTINCT reading.assetId)', 'assetCount')
+      .where('reading.recordedAt >= :since', { since })
+      .getRawOne<{ readingCount: string; assetCount: string }>();
+
+    return {
+      readingCount: Number(summary?.readingCount ?? 0),
+      assetCount: Number(summary?.assetCount ?? 0),
+      since,
     };
   }
 

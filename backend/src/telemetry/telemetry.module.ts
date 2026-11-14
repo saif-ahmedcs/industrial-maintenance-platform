@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssetsModule } from '../assets/assets.module';
 import { TelemetryController } from './telemetry.controller';
 import { TelemetryReadingsController } from './telemetry-readings.controller';
+import { TelemetrySummaryController } from './telemetry-summary.controller';
 import { TelemetryService } from './telemetry.service';
 import { TelemetryReading } from './entities/telemetry-reading.entity';
 
@@ -13,7 +14,11 @@ import { TelemetryReading } from './entities/telemetry-reading.entity';
     TypeOrmModule.forFeature([TelemetryReading]),
     AssetsModule,
   ],
-  controllers: [TelemetryController, TelemetryReadingsController],
+  controllers: [
+    TelemetryController,
+    TelemetryReadingsController,
+    TelemetrySummaryController,
+  ],
   providers: [TelemetryService],
 })
 export class TelemetryModule {}

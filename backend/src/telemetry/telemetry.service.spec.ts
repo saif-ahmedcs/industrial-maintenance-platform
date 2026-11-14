@@ -4,7 +4,11 @@ import { TelemetryService } from './telemetry.service';
 
 describe('TelemetryService', () => {
   let service: TelemetryService;
-  let readingRepo: { insert: jest.Mock; findOne: jest.Mock };
+  let readingRepo: {
+    insert: jest.Mock;
+    findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
   let redis: { set: jest.Mock; get: jest.Mock };
   let queue: { add: jest.Mock };
 
@@ -20,7 +24,11 @@ describe('TelemetryService', () => {
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
-    readingRepo = { insert: jest.fn(async () => ({})), findOne: jest.fn() };
+    readingRepo = {
+      insert: jest.fn(async () => ({})),
+      findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
     redis = { set: jest.fn(async () => 'OK'), get: jest.fn() };
     queue = { add: jest.fn(async () => ({})) };
 
@@ -179,6 +187,61 @@ describe('TelemetryService', () => {
       await expect(service.getLatest(reading.assetId)).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('getSummary', () => {
+    let qb: {
+      select: jest.Mock;
+      addSelect: jest.Mock;
+      where: jest.Mock;
+      getRawOne: jest.Mock;
+    };
+
+    beforeEach(() => {
+      qb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn(),
+      };
+      readingRepo.createQueryBuilder.mockReturnValue(qb);
+    });
+
+    it('counts readings and distinct assets using the same since boundary', async () => {
+      qb.getRawOne.mockResolvedValue({ readingCount: '42', assetCount: '7' });
+
+      const result = await service.getSummary('2026-01-01T00:00:00.000Z');
+
+      expect(readingRepo.createQueryBuilder).toHaveBeenCalledWith('reading');
+      expect(qb.select).toHaveBeenCalledWith(
+        'COUNT(reading.id)',
+        'readingCount',
+      );
+      expect(qb.addSelect).toHaveBeenCalledWith(
+        'COUNT(DISTINCT reading.assetId)',
+        'assetCount',
+      );
+      expect(qb.where).toHaveBeenCalledWith('reading.recordedAt >= :since', {
+        since: '2026-01-01T00:00:00.000Z',
+      });
+      expect(result).toEqual({
+        readingCount: 42,
+        assetCount: 7,
+        since: '2026-01-01T00:00:00.000Z',
+      });
+    });
+
+    it('returns zero counts (as numbers) when nothing matches since', async () => {
+      qb.getRawOne.mockResolvedValue({ readingCount: '0', assetCount: '0' });
+
+      const result = await service.getSummary('2099-01-01T00:00:00.000Z');
+
+      expect(result).toEqual({
+        readingCount: 0,
+        assetCount: 0,
+        since: '2099-01-01T00:00:00.000Z',
+      });
     });
   });
 });
