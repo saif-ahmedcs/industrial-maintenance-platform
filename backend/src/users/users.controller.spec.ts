@@ -9,6 +9,7 @@ describe('UsersController', () => {
     createUser: jest.Mock;
     updateProfile: jest.Mock;
     updateRoles: jest.Mock;
+    resetPassword: jest.Mock;
   };
   let authService: { revokeAllForUser: jest.Mock };
 
@@ -26,13 +27,11 @@ describe('UsersController', () => {
       createUser: jest.fn(),
       updateProfile: jest.fn(),
       updateRoles: jest.fn(),
+      resetPassword: jest.fn(),
     };
     authService = { revokeAllForUser: jest.fn().mockResolvedValue(undefined) };
 
-    controller = new UsersController(
-      usersService as any,
-      authService as any,
-    );
+    controller = new UsersController(usersService as any, authService as any);
   });
 
   describe('findAll', () => {
@@ -146,6 +145,30 @@ describe('UsersController', () => {
     });
   });
 
+  describe('resetPassword (B3)', () => {
+    it('returns the user plus the one-time temporary password, and does not separately call revokeAllForUser (revocation is atomic inside the service)', async () => {
+      usersService.resetPassword.mockResolvedValue({
+        user: {
+          id: 'user-1',
+          email: 'a@example.com',
+          name: 'A',
+          isActive: true,
+          mustChangePassword: true,
+          roles: [viewerRole],
+          createdAt: new Date('2026-01-01'),
+        },
+        temporaryPassword: 'Xyz12345678!@',
+      });
+
+      const result = await controller.resetPassword('user-1', actor);
+
+      expect(usersService.resetPassword).toHaveBeenCalledWith('user-1', actor);
+      expect(result.temporaryPassword).toBe('Xyz12345678!@');
+      expect(result.id).toBe('user-1');
+      expect(authService.revokeAllForUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateRoles', () => {
     it('delegates to the service and maps the result to UserResponseDto', async () => {
       usersService.updateRoles.mockResolvedValue({
@@ -158,11 +181,7 @@ describe('UsersController', () => {
       });
       const dto = { roles: [RoleName.VIEWER] };
 
-      const result = await controller.updateRoles(
-        'user-1',
-        dto as any,
-        actor,
-      );
+      const result = await controller.updateRoles('user-1', dto as any, actor);
 
       expect(usersService.updateRoles).toHaveBeenCalledWith(
         'user-1',

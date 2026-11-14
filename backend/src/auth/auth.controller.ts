@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -26,6 +27,7 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import type { RequestUser } from './interfaces/request-user.interface';
@@ -69,8 +71,9 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({
     description:
-      'Access token, refresh token, and the authenticated user. The refresh ' +
-      'token is also set as an httpOnly cookie, scoped to /auth.',
+      'Access token, refresh token, and whether this account must change ' +
+      'its password before doing anything else (`mustChangePassword`). ' +
+      'The refresh token is also set as an httpOnly cookie, scoped to /auth.',
   })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
   async login(
@@ -79,7 +82,7 @@ export class AuthController {
   ) {
     const tokens = await this.authService.login(req.user);
     this.setRefreshCookie(res, tokens.refreshToken);
-    return tokens;
+    return { ...tokens, mustChangePassword: req.user.mustChangePassword };
   }
 
   @Public()
@@ -141,6 +144,34 @@ export class AuthController {
       await this.authService.logout(presentedToken);
     }
     res.clearCookie(REFRESH_COOKIE_NAME, { path: '/auth' });
+  }
+
+  @Patch('password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Change the current user’s own password',
+    description:
+      'Verifies currentPassword, requires newPassword to be at least 12 ' +
+      'characters, and revokes every other live refresh token for this ' +
+      'user — the session that presents a live refresh_token cookie on ' +
+      'this request is kept; every other session is signed out.',
+  })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiUnauthorizedResponse({ description: 'Current password is incorrect' })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() actor: RequestUser,
+    @Req() req: Request,
+  ): Promise<void> {
+    const presentedRefreshToken = req.cookies?.[REFRESH_COOKIE_NAME] as
+      string | undefined;
+    await this.authService.changePassword(
+      actor.id,
+      dto.currentPassword,
+      dto.newPassword,
+      presentedRefreshToken,
+    );
   }
 
   @Get('me')

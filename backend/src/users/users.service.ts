@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { RequestUser } from '../auth/interfaces/request-user.interface';
 import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { generateTemporaryPassword } from '../common/utils/generate-temporary-password';
@@ -28,8 +29,12 @@ export interface CreatedUser {
 
 export interface UpdatedProfile {
   user: User;
-  /** True when this call just flipped the user from active to inactive. */
   justDeactivated: boolean;
+}
+
+export interface ResetPasswordResult {
+  user: User;
+  temporaryPassword: string;
 }
 
 @Injectable()
@@ -116,6 +121,7 @@ export class UsersService {
         name: dto.name,
         passwordHash,
         isActive: true,
+        mustChangePassword: true,
         roles,
       });
       const saved = await manager.save(user);
@@ -175,6 +181,46 @@ export class UsersService {
       });
 
       return { user: saved, justDeactivated: willDeactivate };
+    });
+  }
+
+  /* POST /users/:id/reset-password */
+  async resetPassword(
+    id: string,
+    actor: RequestUser,
+  ): Promise<ResetPasswordResult> {
+    return this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, { where: { id } });
+      if (!user) {
+        throw new NotFoundException(`User ${id} not found`);
+      }
+
+      const temporaryPassword = generateTemporaryPassword();
+      user.passwordHash = await bcrypt.hash(
+        temporaryPassword,
+        BCRYPT_SALT_ROUNDS,
+      );
+      user.mustChangePassword = true;
+      const saved = await manager.save(user);
+
+      await manager
+        .getRepository(RefreshToken)
+        .update(
+          { userId: saved.id, revokedAt: IsNull() },
+          { revokedAt: new Date() },
+        );
+
+      await this.auditService.record(manager, {
+        actorUserId: actor.id,
+        entityType: 'User',
+        entityId: saved.id,
+        action: 'PASSWORD_RESET',
+        before: null,
+        after: { mustChangePassword: true },
+        source: 'manual',
+      });
+
+      return { user: saved, temporaryPassword };
     });
   }
 

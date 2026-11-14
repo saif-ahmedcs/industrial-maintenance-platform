@@ -17,7 +17,9 @@ describe('UsersService', () => {
     save: jest.Mock;
     find: jest.Mock;
     createQueryBuilder: jest.Mock;
+    getRepository: jest.Mock;
   };
+  let refreshTokenRepo: { update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let auditService: { record: jest.Mock };
 
@@ -47,12 +49,14 @@ describe('UsersService', () => {
       createQueryBuilder: jest.fn(),
       find: jest.fn(),
     };
+    refreshTokenRepo = { update: jest.fn(async () => undefined) };
     manager = {
       findOne: jest.fn(),
       create: jest.fn((_entity, plain) => plain),
       save: jest.fn(async (entity) => entity),
       find: jest.fn(),
       createQueryBuilder: jest.fn(),
+      getRepository: jest.fn(() => refreshTokenRepo),
     };
     dataSource = { transaction: jest.fn((cb) => cb(manager)) };
     auditService = { record: jest.fn(async () => ({})) };
@@ -164,6 +168,15 @@ describe('UsersService', () => {
       await expect(
         bcrypt.compare(result.temporaryPassword, result.user.passwordHash),
       ).resolves.toBe(true);
+    });
+
+    it('sets mustChangePassword so the temporary password forces a change at first sign-in (B3/D5)', async () => {
+      manager.findOne.mockResolvedValue(null);
+      manager.find.mockResolvedValue([supervisorRole]);
+
+      const result = await service.createUser(dto as any, actor);
+
+      expect(result.user.mustChangePassword).toBe(true);
     });
 
     it('records a CREATE audit entry that never includes the password', async () => {
@@ -322,7 +335,11 @@ describe('UsersService', () => {
       manager.findOne.mockResolvedValue(null);
 
       await expect(
-        service.updateRoles('missing', { roles: [RoleName.VIEWER] } as any, actor),
+        service.updateRoles(
+          'missing',
+          { roles: [RoleName.VIEWER] } as any,
+          actor,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -461,6 +478,76 @@ describe('UsersService', () => {
           after: { roles: [RoleName.SUPERVISOR] },
         }),
       );
+    });
+  });
+
+  describe('resetPassword (B3)', () => {
+    it('throws NotFoundException when the user does not exist', async () => {
+      manager.findOne.mockResolvedValue(null);
+
+      await expect(service.resetPassword('missing', actor)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(manager.save).not.toHaveBeenCalled();
+    });
+
+    it('generates and hashes a new temporary password, sets mustChangePassword, and returns the password exactly once', async () => {
+      manager.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'old-hash',
+        mustChangePassword: false,
+      });
+
+      const result = await service.resetPassword('user-1', actor);
+
+      expect(result.temporaryPassword).toHaveLength(16);
+      expect(result.user.mustChangePassword).toBe(true);
+      expect(result.user.passwordHash).not.toBe('old-hash');
+      expect(result.user.passwordHash).not.toBe(result.temporaryPassword);
+      await expect(
+        bcrypt.compare(result.temporaryPassword, result.user.passwordHash),
+      ).resolves.toBe(true);
+    });
+
+    it('revokes every refresh token for the user in the same transaction as the reset', async () => {
+      manager.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'old-hash',
+        mustChangePassword: false,
+      });
+
+      await service.resetPassword('user-1', actor);
+
+      expect(manager.getRepository).toHaveBeenCalled();
+      expect(refreshTokenRepo.update).toHaveBeenCalledWith(
+        { userId: 'user-1', revokedAt: expect.anything() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+
+    it('records a PASSWORD_RESET audit entry that never includes the password itself', async () => {
+      manager.findOne.mockResolvedValue({
+        id: 'user-1',
+        passwordHash: 'old-hash',
+        mustChangePassword: false,
+      });
+
+      const result = await service.resetPassword('user-1', actor);
+
+      expect(auditService.record).toHaveBeenCalledWith(
+        manager,
+        expect.objectContaining({
+          actorUserId: 'actor-1',
+          entityType: 'User',
+          entityId: 'user-1',
+          action: 'PASSWORD_RESET',
+          before: null,
+          after: { mustChangePassword: true },
+        }),
+      );
+      const [, params] = auditService.record.mock.calls[0];
+      expect(JSON.stringify(params)).not.toContain(result.temporaryPassword);
+      expect(JSON.stringify(params)).not.toContain(result.user.passwordHash);
     });
   });
 });

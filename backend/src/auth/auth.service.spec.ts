@@ -362,4 +362,123 @@ describe('AuthService', () => {
       expect(refreshTokenRepo.save).not.toHaveBeenCalled();
     });
   });
+
+  describe('changePassword (B3)', () => {
+    const activeUser: any = {
+      id: 'user-1',
+      email: 'user@example.com',
+      isActive: true,
+      mustChangePassword: true,
+    };
+
+    beforeEach(async () => {
+      activeUser.passwordHash = await bcrypt.hash('CorrectPassword123!', 10);
+      manager.findOne.mockResolvedValue({ ...activeUser });
+    });
+
+    it('rejects a wrong current password with UnauthorizedException and makes no changes', async () => {
+      await expect(
+        service.changePassword(
+          'user-1',
+          'WrongPassword123!',
+          'NewPassword1234!',
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(manager.save).not.toHaveBeenCalled();
+      expect(refreshTokenRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('hashes the new password, clears mustChangePassword, and never stores the password in plaintext', async () => {
+      await service.changePassword(
+        'user-1',
+        'CorrectPassword123!',
+        'NewPassword1234!',
+      );
+
+      expect(manager.save).toHaveBeenCalledTimes(1);
+      const saved = manager.save.mock.calls[0][0];
+      expect(saved.passwordHash).not.toBe('NewPassword1234!');
+      expect(saved.mustChangePassword).toBe(false);
+      await expect(
+        bcrypt.compare('NewPassword1234!', saved.passwordHash),
+      ).resolves.toBe(true);
+    });
+
+    it('revokes every other refresh token but keeps the one matching the presented, still-live cookie', async () => {
+      const liveToken = {
+        id: 'refresh-current',
+        userId: 'user-1',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      };
+      refreshTokenRepo.findOne.mockResolvedValue(liveToken);
+
+      await service.changePassword(
+        'user-1',
+        'CorrectPassword123!',
+        'NewPassword1234!',
+        'current-live-refresh-token',
+      );
+
+      expect(refreshTokenRepo.update).toHaveBeenCalledTimes(1);
+      const [where] = refreshTokenRepo.update.mock.calls[0];
+      expect(where).toEqual(
+        expect.objectContaining({
+          userId: 'user-1',
+          tokenHash: expect.anything(),
+        }),
+      );
+    });
+
+    it('revokes all refresh tokens when no refresh-token cookie is presented', async () => {
+      await service.changePassword(
+        'user-1',
+        'CorrectPassword123!',
+        'NewPassword1234!',
+      );
+
+      expect(refreshTokenRepo.update).toHaveBeenCalledWith(
+        { userId: 'user-1', revokedAt: expect.anything() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+
+    it('revokes all refresh tokens when the presented cookie does not match a live token', async () => {
+      refreshTokenRepo.findOne.mockResolvedValue(null);
+
+      await service.changePassword(
+        'user-1',
+        'CorrectPassword123!',
+        'NewPassword1234!',
+        'some-other-or-stale-token',
+      );
+
+      expect(refreshTokenRepo.update).toHaveBeenCalledWith(
+        { userId: 'user-1', revokedAt: expect.anything() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+
+    it('revokes all refresh tokens when the presented cookie matches an expired token', async () => {
+      refreshTokenRepo.findOne.mockResolvedValue({
+        id: 'refresh-expired',
+        userId: 'user-1',
+        revokedAt: null,
+        expiresAt: new Date(Date.now() - 1000),
+      });
+
+      await service.changePassword(
+        'user-1',
+        'CorrectPassword123!',
+        'NewPassword1234!',
+        'expired-token',
+      );
+
+      expect(refreshTokenRepo.update).toHaveBeenCalledWith(
+        { userId: 'user-1', revokedAt: expect.anything() },
+        { revokedAt: expect.any(Date) },
+      );
+    });
+  });
 });

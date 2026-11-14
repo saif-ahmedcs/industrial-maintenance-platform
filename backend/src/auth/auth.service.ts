@@ -9,7 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'node:crypto';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Not, Repository } from 'typeorm';
 import { Role, RoleName } from '../users/entities/role.entity';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -201,6 +201,67 @@ export class AuthService {
       { userId, revokedAt: IsNull() },
       { revokedAt: new Date() },
     );
+  }
+
+  /* PATCH /auth/password */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    presentedRefreshToken?: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      if (!user) {
+        throw new UnauthorizedException('Account is no longer active');
+      }
+
+      const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!matches) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+
+      user.passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+      user.mustChangePassword = false;
+      await manager.save(user);
+
+      const repo = manager.getRepository(RefreshToken);
+      const keepTokenHash = await this.resolveLiveTokenHash(
+        repo,
+        userId,
+        presentedRefreshToken,
+      );
+
+      if (keepTokenHash) {
+        await repo.update(
+          { userId, revokedAt: IsNull(), tokenHash: Not(keepTokenHash) },
+          { revokedAt: new Date() },
+        );
+      } else {
+        await repo.update(
+          { userId, revokedAt: IsNull() },
+          { revokedAt: new Date() },
+        );
+      }
+    });
+  }
+
+  private async resolveLiveTokenHash(
+    repo: Repository<RefreshToken>,
+    userId: string,
+    presentedToken?: string,
+  ): Promise<string | null> {
+    if (!presentedToken) {
+      return null;
+    }
+    const tokenHash = this.hashToken(presentedToken);
+    const live = await repo.findOne({
+      where: { userId, tokenHash, revokedAt: IsNull() },
+    });
+    if (!live || live.expiresAt.getTime() < Date.now()) {
+      return null;
+    }
+    return tokenHash;
   }
 
   private hashToken(token: string): string {

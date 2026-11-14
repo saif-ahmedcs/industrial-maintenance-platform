@@ -95,6 +95,28 @@ export class UsersController {
     return UserResponseDto.fromEntity(user);
   }
 
+  @Post(':id/reset-password')
+  @ApiOperation({
+    summary:
+      'Generate a new temporary password for a user and force a password ' +
+      'change at next sign-in (ADMIN)',
+    description:
+      'Returns the temporary password once; it is hashed before storage ' +
+      'and cannot be retrieved again. Revokes all of this user’s ' +
+      'refresh tokens.',
+  })
+  @ApiOkResponse({ type: CreateUserResponseDto })
+  async resetPassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: RequestUser,
+  ) {
+    const { user, temporaryPassword } = await this.usersService.resetPassword(
+      id,
+      actor,
+    );
+    return CreateUserResponseDto.fromUserAndPassword(user, temporaryPassword);
+  }
+
   @Put(':id/roles')
   @ApiOperation({
     summary: "Replace a user's role set (ADMIN)",
