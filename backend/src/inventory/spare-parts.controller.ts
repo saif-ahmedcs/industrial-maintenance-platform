@@ -25,6 +25,7 @@ import { RoleName } from '../users/entities/role.entity';
 import { AdjustSparePartDto } from './dto/adjust-spare-part.dto';
 import { CreateSparePartDto } from './dto/create-spare-part.dto';
 import { InventoryTransactionResponseDto } from './dto/inventory-transaction-response.dto';
+import { InventoryTransactionQueryDto } from './dto/inventory-transaction-query.dto';
 import { RestockSparePartDto } from './dto/restock-spare-part.dto';
 import { SparePartQueryDto } from './dto/spare-part-query.dto';
 import { SparePartResponseDto } from './dto/spare-part-response.dto';
@@ -51,6 +52,29 @@ export class SparePartsController {
     const result = await this.inventoryService.findAll(query);
     return {
       data: result.data.map((part) => SparePartResponseDto.fromEntity(part)),
+      meta: result.meta,
+    };
+  }
+
+  @Get(':id/transactions')
+  @ApiOperation({
+    summary: "List a spare part's inventory transactions, newest first",
+  })
+  @ApiOkResponse({
+    description:
+      'Paginated stock movement history. Each row includes before/after quantities, movement reason, and actor.',
+    type: InventoryTransactionResponseDto,
+    isArray: true,
+  })
+  async findTransactions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: InventoryTransactionQueryDto,
+  ) {
+    const result = await this.inventoryService.findTransactions(id, query);
+    return {
+      data: result.data.map((transaction) =>
+        InventoryTransactionResponseDto.fromEntity(transaction),
+      ),
       meta: result.meta,
     };
   }

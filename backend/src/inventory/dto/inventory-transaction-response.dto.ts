@@ -19,11 +19,25 @@ export class InventoryTransactionResponseDto {
   @ApiProperty({ nullable: true })
   workOrderId: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+    description: 'User who performed this stock movement',
+  })
   createdByUserId: string | null;
 
   @ApiProperty({
-    description: 'quantityOnHand snapshot immediately after this transaction',
+    description: 'quantityOnHand immediately before this transaction',
+  })
+  quantityBefore: number;
+
+  @ApiProperty({
+    description: 'quantityOnHand immediately after this transaction',
+  })
+  quantityAfter: number;
+
+  @ApiProperty({
+    description:
+      'Deprecated alias for quantityAfter, retained for existing API consumers',
   })
   resultingQuantity: number;
 
@@ -38,6 +52,8 @@ export class InventoryTransactionResponseDto {
     dto.reason = tx.reason;
     dto.workOrderId = tx.workOrderId;
     dto.createdByUserId = tx.createdByUserId;
+    dto.quantityBefore = tx.resultingQuantity - tx.deltaQuantity;
+    dto.quantityAfter = tx.resultingQuantity;
     dto.resultingQuantity = tx.resultingQuantity;
     dto.createdAt = tx.createdAt;
     return dto;

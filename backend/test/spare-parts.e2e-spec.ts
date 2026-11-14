@@ -5,6 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
+import { AuditService } from './../src/audit/audit.service';
 import {
   InventoryTransaction,
   InventoryTransactionReason,
@@ -531,6 +532,89 @@ describe('Spare parts API (e2e)', () => {
       expect(res.body.meta.limit).toBe(1);
       expect(res.body.meta.total).toBeGreaterThanOrEqual(2);
       expect(res.body.meta.totalPages).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('transaction history', () => {
+    it("returns a part's movements paginated, newest first, including stock snapshots and actor", async () => {
+      const part = await createPart({ initialQuantity: 5 });
+
+      await request(app.getHttpServer())
+        .post(`/spare-parts/${part.id}/restock`)
+        .set('Authorization', bearer(adminToken))
+        .send({ quantity: 3 })
+        .expect(201);
+      await request(app.getHttpServer())
+        .post(`/spare-parts/${part.id}/adjust`)
+        .set('Authorization', bearer(adminToken))
+        .send({ delta: -2, reason: 'Cycle-count correction' })
+        .expect(201);
+
+      const res = await request(app.getHttpServer())
+        .get(`/spare-parts/${part.id}/transactions`)
+        .query({ page: 1, limit: 2 })
+        .set('Authorization', bearer(technicianToken))
+        .expect(200);
+
+      expect(res.body.meta).toMatchObject({
+        page: 1,
+        limit: 2,
+        total: 3,
+        totalPages: 2,
+      });
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0]).toMatchObject({
+        sparePartId: part.id,
+        reason: InventoryTransactionReason.ADJUSTMENT,
+        deltaQuantity: -2,
+        quantityBefore: 8,
+        quantityAfter: 6,
+        resultingQuantity: 6,
+        createdByUserId: adminUserId,
+      });
+      expect(res.body.data[1]).toMatchObject({
+        reason: InventoryTransactionReason.RESTOCK,
+        deltaQuantity: 3,
+        quantityBefore: 5,
+        quantityAfter: 8,
+      });
+    });
+
+    it('rolls back both stock and its transaction when a later write fails', async () => {
+      const part = await createPart();
+      const auditService = app.get(AuditService);
+
+      const restockFailure = jest
+        .spyOn(auditService, 'record')
+        .mockRejectedValueOnce(new Error('Forced restock failure'));
+      try {
+        await request(app.getHttpServer())
+          .post(`/spare-parts/${part.id}/restock`)
+          .set('Authorization', bearer(adminToken))
+          .send({ quantity: 3 })
+          .expect(500);
+      } finally {
+        restockFailure.mockRestore();
+      }
+
+      expect((await getPart(part.id)).quantityOnHand).toBe(0);
+      expect(await loadTransactions(part.id)).toHaveLength(0);
+
+      const adjustmentFailure = jest
+        .spyOn(auditService, 'record')
+        .mockRejectedValueOnce(new Error('Forced adjustment failure'));
+      try {
+        await request(app.getHttpServer())
+          .post(`/spare-parts/${part.id}/adjust`)
+          .set('Authorization', bearer(adminToken))
+          .send({ delta: 3, reason: 'Forced failure check' })
+          .expect(500);
+      } finally {
+        adjustmentFailure.mockRestore();
+      }
+
+      expect((await getPart(part.id)).quantityOnHand).toBe(0);
+      expect(await loadTransactions(part.id)).toHaveLength(0);
     });
   });
 

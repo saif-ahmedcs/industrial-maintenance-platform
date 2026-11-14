@@ -10,10 +10,20 @@ import { InventoryService } from './inventory.service';
 describe('InventoryService', () => {
   let service: InventoryService;
   let sparePartRepo: { findOneBy: jest.Mock; createQueryBuilder: jest.Mock };
+  let inventoryTransactionRepo: { createQueryBuilder: jest.Mock };
   let queryBuilder: {
     setLock: jest.Mock;
     where: jest.Mock;
     getOne: jest.Mock;
+  };
+  let transactionQueryBuilder: {
+    where: jest.Mock;
+    orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
+    getManyAndCount: jest.Mock;
+    alias: string;
   };
   let manager: {
     createQueryBuilder: jest.Mock;
@@ -48,7 +58,19 @@ describe('InventoryService', () => {
       where: jest.fn().mockReturnThis(),
       getOne: jest.fn(),
     };
+    transactionQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn(),
+      alias: 'transaction',
+    };
     sparePartRepo = { findOneBy: jest.fn(), createQueryBuilder: jest.fn() };
+    inventoryTransactionRepo = {
+      createQueryBuilder: jest.fn(() => transactionQueryBuilder),
+    };
     manager = {
       createQueryBuilder: jest.fn(() => queryBuilder),
       create: jest.fn((_entity, plain) => plain),
@@ -60,9 +82,39 @@ describe('InventoryService', () => {
 
     service = new InventoryService(
       sparePartRepo as any,
+      inventoryTransactionRepo as any,
       dataSource as any,
       auditService as any,
     );
+  });
+
+  describe('findTransactions', () => {
+    it('returns only the part history, newest first, with pagination', async () => {
+      sparePartRepo.findOneBy.mockResolvedValue(makePart());
+      transactionQueryBuilder.getManyAndCount.mockResolvedValue([
+        [{ id: 'tx-2' }, { id: 'tx-1' }],
+        3,
+      ]);
+
+      const result = await service.findTransactions('part-1', {
+        page: 1,
+        limit: 2,
+        sortDir: 'ASC',
+      });
+
+      expect(transactionQueryBuilder.where).toHaveBeenCalledWith(
+        'transaction.sparePartId = :sparePartId',
+        { sparePartId: 'part-1' },
+      );
+      expect(transactionQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'transaction.createdAt',
+        'DESC',
+      );
+      expect(result).toEqual({
+        data: [{ id: 'tx-2' }, { id: 'tx-1' }],
+        meta: { page: 1, limit: 2, total: 3, totalPages: 2 },
+      });
+    });
   });
 
   describe('create', () => {
@@ -157,6 +209,7 @@ describe('InventoryService', () => {
 
       expect(sparePart.quantityOnHand).toBe(3);
       expect(transaction.deltaQuantity).toBe(-2);
+      expect(manager.save).toHaveBeenCalledTimes(2); // part + transaction
       expect(manager.create).toHaveBeenCalledWith(
         InventoryTransaction,
         expect.objectContaining({
@@ -190,6 +243,16 @@ describe('InventoryService', () => {
       );
 
       expect(sparePart.quantityOnHand).toBe(8);
+      expect(manager.save).toHaveBeenCalledTimes(2); // part + transaction
+      expect(manager.create).toHaveBeenCalledWith(
+        InventoryTransaction,
+        expect.objectContaining({
+          deltaQuantity: 3,
+          reason: InventoryTransactionReason.RESTOCK,
+          resultingQuantity: 8,
+          createdByUserId: actor.id,
+        }),
+      );
       expect(auditService.record).toHaveBeenCalledWith(
         manager,
         expect.objectContaining({
@@ -212,6 +275,16 @@ describe('InventoryService', () => {
       );
 
       expect(sparePart.quantityOnHand).toBe(3);
+      expect(manager.save).toHaveBeenCalledTimes(2); // part + transaction
+      expect(manager.create).toHaveBeenCalledWith(
+        InventoryTransaction,
+        expect.objectContaining({
+          deltaQuantity: -2,
+          reason: InventoryTransactionReason.ADJUSTMENT,
+          resultingQuantity: 3,
+          createdByUserId: actor.id,
+        }),
+      );
       expect(auditService.record).toHaveBeenCalledWith(
         manager,
         expect.objectContaining({

@@ -11,6 +11,7 @@ import { paginate, PaginatedResult } from '../common/pagination/paginate';
 import { AdjustSparePartDto } from './dto/adjust-spare-part.dto';
 import { CreateSparePartDto } from './dto/create-spare-part.dto';
 import { RestockSparePartDto } from './dto/restock-spare-part.dto';
+import { InventoryTransactionQueryDto } from './dto/inventory-transaction-query.dto';
 import { SparePartQueryDto } from './dto/spare-part-query.dto';
 import { UpdateSparePartDto } from './dto/update-spare-part.dto';
 import {
@@ -34,12 +35,15 @@ interface StockChangeResult extends ConsumeResult {
 }
 
 const SORTABLE_FIELDS = ['part.sku', 'part.name', 'part.quantityOnHand'];
+const TRANSACTION_SORTABLE_FIELDS = ['transaction.createdAt'];
 
 @Injectable()
 export class InventoryService {
   constructor(
     @InjectRepository(SparePart)
     private readonly sparePartRepo: Repository<SparePart>,
+    @InjectRepository(InventoryTransaction)
+    private readonly inventoryTransactionRepo: Repository<InventoryTransaction>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
   ) {}
@@ -121,6 +125,26 @@ export class InventoryService {
       throw new NotFoundException(`Spare part ${id} not found`);
     }
     return part;
+  }
+
+  async findTransactions(
+    sparePartId: string,
+    query: InventoryTransactionQueryDto,
+  ): Promise<PaginatedResult<InventoryTransaction>> {
+    await this.findOne(sparePartId);
+
+    const qb = this.inventoryTransactionRepo
+      .createQueryBuilder('transaction')
+      .where('transaction.sparePartId = :sparePartId', { sparePartId });
+
+    return paginate(
+      qb,
+      { ...query, sortDir: 'DESC' },
+      {
+        defaultSortBy: 'transaction.createdAt',
+        allowedSortFields: TRANSACTION_SORTABLE_FIELDS,
+      },
+    );
   }
 
   async create(
